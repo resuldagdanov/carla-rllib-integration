@@ -20,6 +20,11 @@ from rllib_integration.sensors.sensor_interface import SensorInterface
 from rllib_integration.sensors.factory import SensorFactory
 from rllib_integration.helper import join_dicts
 
+from srunner.scenariomanager.carla_data_provider import *
+from leaderboard.utils.route_indexer import RouteIndexer
+
+from custom_scenario_runner.custom_route_scenario import CustomRouteScenario
+
 BASE_CORE_CONFIG = {
     "host": "localhost",  # Client host
     "timeout": 10.0,  # Timeout of the client
@@ -122,6 +127,7 @@ class CarlaCore:
                 settings.synchronous_mode = True
                 settings.fixed_delta_seconds = self.config["timestep"]
                 self.world.apply_settings(settings)
+
                 self.world.tick()
 
                 return
@@ -164,15 +170,39 @@ class CarlaCore:
             experiment_config["background_activity"]["n_walkers"],
         )
 
+        self.world.reset_all_traffic_lights()
+
+        # TODO: do we need CarlaDataProvider?
+        CarlaDataProvider.set_client(self.client)
+        CarlaDataProvider.set_world(self.world)
+        CarlaDataProvider.set_traffic_manager_port(self.tm_port)
+
+        """
+        # Wait for the world to be ready
+        if CarlaDataProvider.is_sync_mode():
+            self.world.tick()
+        else:
+            self.world.wait_for_tick()
+        """
+
 
     def reset_hero(self, hero_config):
         """This function resets / spawns the hero vehicle and its sensors"""
-
+        
         # Part 1: destroy all sensors (if necessary)
         self.sensor_interface.destroy()
 
         self.world.tick()
 
+        self.hero_blueprints = self.world.get_blueprint_library().find(hero_config['ego_vehicle_type'])
+        self.hero_blueprints.set_attribute("role_name", "hero")
+
+        # If already spawned, destroy it
+        if self.hero is not None:
+            self.hero.destroy()
+            self.hero = None
+
+        """
         # Part 2: Spawn the ego vehicle
         user_spawn_points = hero_config["spawn_points"]
         if user_spawn_points:
@@ -220,8 +250,30 @@ class CarlaCore:
         if self.hero is None:
             print("We ran out of spawn points")
             return
+        """
 
-        self.world.tick()
+        """
+        Spawn or update the ego vehicles
+        """
+
+        route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
+
+        while route_indexer.peek():
+            # setup
+            route_indexer_config = route_indexer.next()
+
+            print(f"route_indexer_config {route_indexer_config}")
+
+            scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
+            print(f"scenario {scenario}")
+
+            self.hero = scenario.ego_vehicle
+            print(f"self.hero {self.hero}")
+
+        # sync state
+        CarlaDataProvider.get_world().tick()
+
+        #self.world.tick()
 
         # Part 3: Spawn the new sensors
         for name, attributes in hero_config["sensors"].items():
