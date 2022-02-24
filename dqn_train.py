@@ -43,6 +43,7 @@ def run(args):
                                         args.restore, args.overwrite),
                  config=args.config,
                  queue_trials=True)
+                 #num_samples=2
 
     finally:
         kill_all_servers()

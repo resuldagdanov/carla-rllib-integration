@@ -234,12 +234,15 @@ class CarlaCore:
             print(f"scenario {self.scenario}")
 
             self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
-            scenario_thread = Thread(target=self.manager.run_scenario)
-            scenario_thread.start()
+            #scenario_thread = Thread(target=self.manager.run_scenario)
+            #scenario_thread.start()
 
             self.hero = self.scenario.ego_vehicle
             print(f"self.hero {self.hero}")
 
+            #break
+
+        self.manager.init_tick_scenario()
         # sync state
         CarlaDataProvider.get_world().tick()
 
@@ -263,7 +266,23 @@ class CarlaCore:
             print(f"apply hero control")
             self.apply_hero_control(control)
         """
+        if control is not None:
+            timestamp = None
+            world = CarlaDataProvider.get_world()
+            if world:
+                snapshot = world.get_snapshot()
+                if snapshot:
+                    timestamp = snapshot.timestamp
 
+            control.throttle = 1.0
+            control.steer = 0.0
+            control.brake = 0.0
+            print(f"control {control}")
+            self.manager._tick_scenario(timestamp, control)
+        else:
+            print("controlis none")
+
+        """
         if control is not None:
             ego_action = carla.VehicleControl() # TODO: change this
             ego_action.throttle = 0.5
@@ -271,6 +290,7 @@ class CarlaCore:
             ego_action.brake = 0.0
             print(f"apply hero control")
             self.apply_hero_control(ego_action)
+        """
 
         # Tick once the simulation
         self.world.tick()

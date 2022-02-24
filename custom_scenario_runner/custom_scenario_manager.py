@@ -111,10 +111,8 @@ class CustomScenarioManager(object):
         # To print the scenario tree uncomment the next line
         # py_trees.display.render_dot_tree(self.scenario_tree)
 
+    """
     def run_scenario(self):
-        """
-        Trigger the start of the scenario and wait for it to finish/fail
-        """
         self.start_system_time = time.time()
         self.start_game_time = GameTime.get_time()
 
@@ -130,8 +128,15 @@ class CustomScenarioManager(object):
                     timestamp = snapshot.timestamp
             if timestamp:
                 self._tick_scenario(timestamp)
+    """
+    def init_tick_scenario(self):
+        self.start_system_time = time.time()
+        self.start_game_time = GameTime.get_time()
 
-    def _tick_scenario(self, timestamp):
+        self._watchdog.start()
+        self._running = True
+
+    def _tick_scenario(self, timestamp, ego_action):
         """
         Run next tick of scenario and the agent and tick the world.
         """
@@ -144,14 +149,9 @@ class CustomScenarioManager(object):
             GameTime.on_carla_tick(timestamp)
             CarlaDataProvider.on_carla_tick()
 
-            """
-            ego_action = carla.VehicleControl() # TODO: change this
-            ego_action.throttle = 0.4
-            ego_action.steer = 0.0
-            ego_action.brake = 0.0
-
             self.ego_vehicles[0].apply_control(ego_action)
-            """
+
+            print(f"ego_action {ego_action}")
 
             # Tick scenario
             self.scenario_tree.tick_once()
