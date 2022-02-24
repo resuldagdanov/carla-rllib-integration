@@ -274,23 +274,10 @@ class CarlaCore:
                 if snapshot:
                     timestamp = snapshot.timestamp
 
-            control.throttle = 1.0
-            control.steer = 0.0
-            control.brake = 0.0
             print(f"control {control}")
             self.manager._tick_scenario(timestamp, control)
         else:
-            print("controlis none")
-
-        """
-        if control is not None:
-            ego_action = carla.VehicleControl() # TODO: change this
-            ego_action.throttle = 0.5
-            ego_action.steer = 0.0
-            ego_action.brake = 0.0
-            print(f"apply hero control")
-            self.apply_hero_control(ego_action)
-        """
+            print("control is none")
 
         # Tick once the simulation
         self.world.tick()
