@@ -1,6 +1,6 @@
 import carla
 
-from leaderboard.scenarios.scenario_manager import ScenarioManager
+from custom_scenario_manager import CustomScenarioManager
 from custom_route_scenario import CustomRouteScenario
 from leaderboard.utils.route_indexer import RouteIndexer
 
@@ -25,7 +25,6 @@ class CustomScenarioRunner():
         Load a new CARLA world and provide data to CarlaDataProvider
         """
 
-
         self.client = carla.Client(args.host, int(args.port))
         if args.timeout:
             self.client_timeout = float(args.timeout)
@@ -33,7 +32,7 @@ class CustomScenarioRunner():
 
         self.traffic_manager = self.client.get_trafficmanager(int(args.trafficManagerPort))
 
-        self.manager = ScenarioManager(args.timeout, args.debug > 1)
+        self.manager = CustomScenarioManager(args.timeout, args.debug > 1)
 
         self.world = self.client.load_world(town)
         settings = self.world.get_settings()
@@ -103,6 +102,10 @@ class CustomScenarioRunner():
         scenario = CustomRouteScenario(world=self.world, config=config, ego_vehicle_type=args.ego_vehicle_type, debug_mode=args.debug)
         print(f"scenario {scenario}")
 
+        self.manager.load_scenario(scenario, config.repetition_index)
+        self.manager.run_scenario()
+        self.manager.stop_scenario()
+
     def run(self, args):
         route_indexer = RouteIndexer(args.routes, args.scenarios, args.repetitions)
         
@@ -142,7 +145,7 @@ def main():
     parser.add_argument("--ego_vehicle_type", type=str, default="vehicle.lincoln.mkz2017", help="Ego vehicle type in Carla")
 
     arguments = parser.parse_args()
-    arguments.routes = "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" #"/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/original_routes/routes_town05_long.xml"
+    arguments.routes = "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/traffic_light_1.xml" #"/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/original_routes/routes_town05_long.xml"
     arguments.scenarios = "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
     arguments.debug = 1
     arguments.ego_vehicle_type = "vehicle.lincoln.mkz2017"

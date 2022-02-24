@@ -12,7 +12,7 @@ from __future__ import print_function
 import gym
 
 from rllib_integration.carla_core import CarlaCore
-
+from srunner.scenariomanager.carla_data_provider import *
 
 class CarlaEnv(gym.Env):
     """
@@ -52,5 +52,7 @@ class CarlaEnv(gym.Env):
         observation, info = self.experiment.get_observation(sensor_data)
         done = self.experiment.get_done_status(observation, self.core)
         reward = self.experiment.compute_reward(observation, self.core)
+
+        print(f"done {done}")
 
         return observation, reward, done, info

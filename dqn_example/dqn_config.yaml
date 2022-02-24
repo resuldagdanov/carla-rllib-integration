@@ -48,10 +48,11 @@ env_config:
     enable_map_assets: True
     enable_rendering: True
     show_display: True
+    debug_mode: 1
 
   experiment:
     hero:
-      routes: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml"
+      routes: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/traffic_light_1.xml" # TODO: make this generic
       scenarios: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1
@@ -62,11 +63,9 @@ env_config:
           size: 300
           radius: 15
     background_activity:
-      n_vehicles: 0
-      n_walkers: 0
       tm_hybrid_mode: True
     town: "Town05" #"Town05_Opt"
     others:
       framestack: 4
       max_time_idle: 600
-      max_time_episode: 100 #6400
+      max_time_episode: 1000 #6400

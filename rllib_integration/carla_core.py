@@ -24,6 +24,9 @@ from srunner.scenariomanager.carla_data_provider import *
 from leaderboard.utils.route_indexer import RouteIndexer
 
 from custom_scenario_runner.custom_route_scenario import CustomRouteScenario
+from custom_scenario_runner.custom_scenario_manager import CustomScenarioManager
+
+from threading import Thread
 
 BASE_CORE_CONFIG = {
     "host": "localhost",  # Client host
@@ -63,6 +66,8 @@ class CarlaCore:
         self.hero = None
         self.config = join_dicts(BASE_CORE_CONFIG, config)
         self.sensor_interface = SensorInterface()
+
+        self.scenario_exist = None
 
         self.init_server()
         self.connect_client()
@@ -164,18 +169,9 @@ class CarlaCore:
         if seed is not None:
             self.traffic_manager.set_random_device_seed(seed)
 
-        # Spawn the background activity
-        self.spawn_npcs(
-            experiment_config["background_activity"]["n_vehicles"],
-            experiment_config["background_activity"]["n_walkers"],
-        )
-
         self.world.reset_all_traffic_lights()
 
-        # TODO: do we need CarlaDataProvider?
-        CarlaDataProvider.set_client(self.client)
-        CarlaDataProvider.set_world(self.world)
-        CarlaDataProvider.set_traffic_manager_port(self.tm_port)
+        self.world.tick()
 
         """
         # Wait for the world to be ready
@@ -203,59 +199,29 @@ class CarlaCore:
             self.hero = None
 
         """
-        # Part 2: Spawn the ego vehicle
-        user_spawn_points = hero_config["spawn_points"]
-        if user_spawn_points:
-            spawn_points = []
-            for transform in user_spawn_points:
-
-                transform = [float(x) for x in transform.split(",")]
-                if len(transform) == 3:
-                    location = carla.Location(
-                        transform[0], transform[1], transform[2]
-                    )
-                    waypoint = self.map.get_waypoint(location)
-                    waypoint = waypoint.previous(random.uniform(0, 5))[0]
-                    transform = carla.Transform(
-                        location, waypoint.transform.rotation
-                    )
-                else:
-                    assert len(transform) == 6
-                    transform = carla.Transform(
-                        carla.Location(transform[0], transform[1], transform[2]),
-                        carla.Rotation(transform[4], transform[5], transform[3])
-                    )
-                spawn_points.append(transform)
-        else:
-            spawn_points = self.map.get_spawn_points()
-
-        self.hero_blueprints = self.world.get_blueprint_library().find(hero_config['blueprint'])
-        self.hero_blueprints.set_attribute("role_name", "hero")
-
-        # If already spawned, destroy it
-        if self.hero is not None:
-            self.hero.destroy()
-            self.hero = None
-
-        random.shuffle(spawn_points, random.random)
-        for i in range(0,len(spawn_points)):
-            next_spawn_point = spawn_points[i % len(spawn_points)]
-            self.hero = self.world.try_spawn_actor(self.hero_blueprints, next_spawn_point)
-            if self.hero is not None:
-                print("Hero spawned!")
-                break
-            else:
-                print("Could not spawn hero, changing spawn point")
-
-        if self.hero is None:
-            print("We ran out of spawn points")
-            return
-        """
-
-        """
         Spawn or update the ego vehicles
         """
+        
+        if self.scenario_exist is not None:
+            self.manager.stop_scenario()
+            print("self.manager.stop_scenario()")
+        
+            self.scenario.remove_all_actors()
+            print("self.scenario.remove_all_actors()")
 
+            if self.manager:
+                self.manager.cleanup()
+                print("self.manager.cleanup()")
+
+            CarlaDataProvider.cleanup()
+            print("CarlaDataProvider.cleanup()")
+        
+        self.manager = CustomScenarioManager(self.config["timeout"], self.config["debug_mode"] > 1)
+
+        CarlaDataProvider.set_client(self.client)
+        CarlaDataProvider.set_world(self.world)
+        CarlaDataProvider.set_traffic_manager_port(self.tm_port)
+        
         route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
 
         while route_indexer.peek():
@@ -264,10 +230,14 @@ class CarlaCore:
 
             print(f"route_indexer_config {route_indexer_config}")
 
-            scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
-            print(f"scenario {scenario}")
+            self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
+            print(f"scenario {self.scenario}")
 
-            self.hero = scenario.ego_vehicle
+            self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
+            scenario_thread = Thread(target=self.manager.run_scenario)
+            scenario_thread.start()
+
+            self.hero = self.scenario.ego_vehicle
             print(f"self.hero {self.hero}")
 
         # sync state
@@ -284,93 +254,23 @@ class CarlaCore:
 
         return self.hero
 
-    def spawn_npcs(self, n_vehicles, n_walkers):
-        """Spawns vehicles and walkers, also setting up the Traffic Manager and its parameters"""
-
-
-        SpawnActor = carla.command.SpawnActor
-        SetAutopilot = carla.command.SetAutopilot
-        FutureActor = carla.command.FutureActor
-
-        # Spawn vehicles
-        spawn_points = self.world.get_map().get_spawn_points()
-        n_spawn_points = len(spawn_points)
-
-        if n_vehicles < n_spawn_points:
-            random.shuffle(spawn_points)
-        elif n_vehicles > n_spawn_points:
-            logging.warning("{} vehicles were requested, but there were only {} available spawn points"
-                            .format(n_vehicles, n_spawn_points))
-            n_vehicles = n_spawn_points
-
-        v_batch = []
-        v_blueprints = self.world.get_blueprint_library().filter("vehicle.*")
-
-        for n, transform in enumerate(spawn_points):
-            if n >= n_vehicles:
-                break
-            v_blueprint = random.choice(v_blueprints)
-            if v_blueprint.has_attribute('color'):
-                color = random.choice(v_blueprint.get_attribute('color').recommended_values)
-                v_blueprint.set_attribute('color', color)
-            v_blueprint.set_attribute('role_name', 'autopilot')
-
-            transform.location.z += 1
-            v_batch.append(SpawnActor(v_blueprint, transform)
-                           .then(SetAutopilot(FutureActor, True, self.tm_port)))
-
-        results = self.client.apply_batch_sync(v_batch, True)
-        if len(results) < n_vehicles:
-            logging.warning("{} vehicles were requested but could only spawn {}"
-                            .format(n_vehicles, len(results)))
-        vehicles_id_list = [r.actor_id for r in results if not r.error]
-
-        # Spawn the walkers
-        spawn_locations = [self.world.get_random_location_from_navigation() for i in range(n_walkers)]
-
-        w_batch = []
-        w_blueprints = self.world.get_blueprint_library().filter("walker.pedestrian.*")
-
-        for spawn_location in spawn_locations:
-            w_blueprint = random.choice(w_blueprints)
-            if w_blueprint.has_attribute('is_invincible'):
-                w_blueprint.set_attribute('is_invincible', 'false')
-            w_batch.append(SpawnActor(w_blueprint, carla.Transform(spawn_location)))
-
-        results = self.client.apply_batch_sync(w_batch, True)
-        if len(results) < n_walkers:
-            logging.warning("Could only spawn {} out of the {} requested walkers."
-                            .format(len(results), n_walkers))
-        walkers_id_list = [r.actor_id for r in results if not r.error]
-
-        # Spawn the walker controllers
-        wc_batch = []
-        wc_blueprint = self.world.get_blueprint_library().find('controller.ai.walker')
-
-        for walker_id in walkers_id_list:
-            wc_batch.append(SpawnActor(wc_blueprint, carla.Transform(), walker_id))
-
-        results = self.client.apply_batch_sync(wc_batch, True)
-        if len(results) < len(walkers_id_list):
-            logging.warning("Only {} out of {} controllers could be created. Some walkers might be stopped"
-                            .format(len(results), n_walkers))
-        controllers_id_list = [r.actor_id for r in results if not r.error]
-
-        self.world.tick()
-
-        for controller in self.world.get_actors(controllers_id_list):
-            controller.start()
-            controller.go_to_location(self.world.get_random_location_from_navigation())
-
-        self.world.tick()
-        self.actors = self.world.get_actors(vehicles_id_list + walkers_id_list + controllers_id_list)
-
     def tick(self, control):
         """Performs one tick of the simulation, moving all actors, and getting the sensor data"""
 
+        """
         # Move hero vehicle
         if control is not None:
+            print(f"apply hero control")
             self.apply_hero_control(control)
+        """
+
+        if control is not None:
+            ego_action = carla.VehicleControl() # TODO: change this
+            ego_action.throttle = 0.5
+            ego_action.steer = 0.0
+            ego_action.brake = 0.0
+            print(f"apply hero control")
+            self.apply_hero_control(ego_action)
 
         # Tick once the simulation
         self.world.tick()
