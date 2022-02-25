@@ -1,5 +1,22 @@
 ```sh
+conda create -n rllib python=3.7
+
+conda activate rllib
+
 pip install -r requirements.txt
+
+Download Carla 0.9.11 https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.11.tar.gz
+```
+
+```sh
+gedit ~/.bashrc
+
+export CARLA_ROOT=PATH_TO_CARLA_ROOT
+export SCENARIO_RUNNER_ROOT=PATH_TO_SCENARIO_RUNNER
+export LEADERBOARD_ROOT=PATH_TO_LEADERBOARD
+export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":"${SCENARIO_RUNNER_ROOT}":"${LEADERBOARD_ROOT}":"${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.11-py3.7-linux-x86_64.egg":${PYTHONPATH}
+
+source ~/.bashrc
 ```
 
 ```sh
