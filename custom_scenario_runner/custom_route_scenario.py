@@ -230,6 +230,8 @@ class CustomRouteScenario(BasicScenario):
         self.route = route
         CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
 
+        #config.agent.set_global_plan(gps_route, self.route) #TODO: this can be used for getting waypoints in the route
+
         # Sample the scenarios to be used for this route instance.
         self.sampled_scenarios_definitions = self._scenario_sampling(potential_scenarios_definitions)
 

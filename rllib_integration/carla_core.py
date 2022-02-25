@@ -171,6 +171,10 @@ class CarlaCore:
 
         self.world.reset_all_traffic_lights()
 
+        CarlaDataProvider.set_client(self.client)
+        CarlaDataProvider.set_world(self.world)
+        CarlaDataProvider.set_traffic_manager_port(self.tm_port)
+
         self.world.tick()
 
     def reset_hero(self, hero_config):
@@ -193,6 +197,10 @@ class CarlaCore:
         Spawn or update the ego vehicles
         """
         
+        print(f"self.scenario_exist {self.scenario_exist}")
+
+        # TODO: perform successful cleanup
+        """
         if self.scenario_exist is not None:
             self.manager.stop_scenario()
             self.scenario.remove_all_actors()
@@ -200,31 +208,29 @@ class CarlaCore:
                 self.manager.cleanup()
             CarlaDataProvider.cleanup()
             print("Scenario cleaning up")
+        """
 
         self.manager = CustomScenarioManager(self.config["timeout"], self.config["debug_mode"] > 1)
-
-        CarlaDataProvider.set_client(self.client)
-        CarlaDataProvider.set_world(self.world)
-        CarlaDataProvider.set_traffic_manager_port(self.tm_port)
-        
         route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
 
-        # TODO: change this to one route
-        while route_indexer.peek():
-            route_indexer_config = route_indexer.next()
-            self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
-            self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
-            self.hero = self.scenario.ego_vehicle
-
-        self.manager.init_tick_scenario()
-        # sync state
-        CarlaDataProvider.get_world().tick()
-
-        #self.world.tick()
+        # only one route is allowed
+        route_indexer.peek()
+        route_indexer_config = route_indexer.next()
+        self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
+        self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
+        self.hero = self.scenario.ego_vehicle
+        
+        # TODO: change of weather can be added
 
         # Part 3: Spawn the new sensors
         for name, attributes in hero_config["sensors"].items():
             sensor = SensorFactory.spawn(name, attributes, self.sensor_interface, self.hero)
+            print(f"sensor {sensor} spawned!")
+
+        self.manager.init_tick_scenario()
+        # sync state
+
+        self.world.tick()
 
         # Not needed anymore. This tick will happen when calling CarlaCore.tick()
         # self.world.tick()

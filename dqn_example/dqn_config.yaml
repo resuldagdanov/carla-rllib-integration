@@ -68,4 +68,4 @@ env_config:
     others:
       framestack: 4
       max_time_idle: 600
-      max_time_episode: 1000 #6400
+      max_time_episode: 500 #6400

@@ -53,6 +53,8 @@ class CarlaEnv(gym.Env):
         done = self.experiment.get_done_status(observation, self.core)
         reward = self.experiment.compute_reward(observation, self.core)
 
-        print(f"done {done}")
+        print(f"action {control} reward {reward} done {done}")
 
+        if done:
+            print("*******End of the episode!*******")
         return observation, reward, done, info
