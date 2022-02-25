@@ -64,7 +64,7 @@ env_config:
           radius: 15
     background_activity:
       tm_hybrid_mode: True
-    town: "Town05" #"Town05_Opt"
+    town: "Town05"
     others:
       framestack: 4
       max_time_idle: 600

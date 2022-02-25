@@ -173,15 +173,6 @@ class CarlaCore:
 
         self.world.tick()
 
-        """
-        # Wait for the world to be ready
-        if CarlaDataProvider.is_sync_mode():
-            self.world.tick()
-        else:
-            self.world.wait_for_tick()
-        """
-
-
     def reset_hero(self, hero_config):
         """This function resets / spawns the hero vehicle and its sensors"""
         
@@ -204,18 +195,12 @@ class CarlaCore:
         
         if self.scenario_exist is not None:
             self.manager.stop_scenario()
-            print("self.manager.stop_scenario()")
-        
             self.scenario.remove_all_actors()
-            print("self.scenario.remove_all_actors()")
-
             if self.manager:
                 self.manager.cleanup()
-                print("self.manager.cleanup()")
-
             CarlaDataProvider.cleanup()
-            print("CarlaDataProvider.cleanup()")
-        
+            print("Scenario cleaning up")
+
         self.manager = CustomScenarioManager(self.config["timeout"], self.config["debug_mode"] > 1)
 
         CarlaDataProvider.set_client(self.client)
@@ -224,23 +209,12 @@ class CarlaCore:
         
         route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
 
+        # TODO: change this to one route
         while route_indexer.peek():
-            # setup
             route_indexer_config = route_indexer.next()
-
-            print(f"route_indexer_config {route_indexer_config}")
-
             self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
-            print(f"scenario {self.scenario}")
-
             self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
-            #scenario_thread = Thread(target=self.manager.run_scenario)
-            #scenario_thread.start()
-
             self.hero = self.scenario.ego_vehicle
-            print(f"self.hero {self.hero}")
-
-            #break
 
         self.manager.init_tick_scenario()
         # sync state
@@ -260,12 +234,7 @@ class CarlaCore:
     def tick(self, control):
         """Performs one tick of the simulation, moving all actors, and getting the sensor data"""
 
-        """
-        # Move hero vehicle
-        if control is not None:
-            print(f"apply hero control")
-            self.apply_hero_control(control)
-        """
+        # Move hero vehicle and scenario vehicles
         if control is not None:
             timestamp = None
             world = CarlaDataProvider.get_world()
@@ -273,11 +242,7 @@ class CarlaCore:
                 snapshot = world.get_snapshot()
                 if snapshot:
                     timestamp = snapshot.timestamp
-
-            print(f"control {control}")
             self.manager._tick_scenario(timestamp, control)
-        else:
-            print("control is none")
 
         # Tick once the simulation
         self.world.tick()
@@ -311,10 +276,6 @@ class CarlaCore:
                 carla.Rotation(pitch=server_view_pitch,yaw=server_view_yaw,roll=server_view_roll),
             )
         )
-
-    def apply_hero_control(self, control):
-        """Applies the control calcualted at the experiment to the hero"""
-        self.hero.apply_control(control)
 
     def get_sensor_data(self):
         """Returns the data sent by the different sensors at this tick"""

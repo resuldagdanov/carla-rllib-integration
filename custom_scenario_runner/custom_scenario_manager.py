@@ -103,7 +103,6 @@ class CustomScenarioManager(object):
         self.scenario_class = scenario
         self.scenario = scenario.scenario
         self.scenario_tree = self.scenario.scenario_tree
-        print(f"scenario.ego_vehicles {scenario.ego_vehicles}")
         self.ego_vehicles = scenario.ego_vehicles
         self.other_actors = scenario.other_actors
         self.repetition_number = rep_number
@@ -111,24 +110,6 @@ class CustomScenarioManager(object):
         # To print the scenario tree uncomment the next line
         # py_trees.display.render_dot_tree(self.scenario_tree)
 
-    """
-    def run_scenario(self):
-        self.start_system_time = time.time()
-        self.start_game_time = GameTime.get_time()
-
-        self._watchdog.start()
-        self._running = True
-
-        while self._running:
-            timestamp = None
-            world = CarlaDataProvider.get_world()
-            if world:
-                snapshot = world.get_snapshot()
-                if snapshot:
-                    timestamp = snapshot.timestamp
-            if timestamp:
-                self._tick_scenario(timestamp)
-    """
     def init_tick_scenario(self):
         self.start_system_time = time.time()
         self.start_game_time = GameTime.get_time()
@@ -140,7 +121,7 @@ class CustomScenarioManager(object):
         """
         Run next tick of scenario and the agent and tick the world.
         """
-        print("tick_scenario")
+
         if self._timestamp_last_run < timestamp.elapsed_seconds and self._running:
             self._timestamp_last_run = timestamp.elapsed_seconds
 
@@ -150,8 +131,6 @@ class CustomScenarioManager(object):
             CarlaDataProvider.on_carla_tick()
 
             self.ego_vehicles[0].apply_control(ego_action)
-
-            print(f"ego_action {ego_action}")
 
             # Tick scenario
             self.scenario_tree.tick_once()
