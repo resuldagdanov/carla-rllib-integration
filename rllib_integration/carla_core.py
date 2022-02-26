@@ -96,6 +96,8 @@ class CarlaCore:
                 "-windowed",
                 "-ResX={}".format(self.config["resolution_x"]),
                 "-ResY={}".format(self.config["resolution_y"]),
+                "-prefernvidia",
+                "-vulkan"
             ]
         else:
             server_command = [

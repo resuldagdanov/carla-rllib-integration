@@ -2,13 +2,15 @@
 # https://github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
 framework: "torch"
 num_workers: 1
+num_gpus: 1
 num_gpus_per_worker: 1
 num_cpus_per_worker: 2
 rollout_fragment_length: 16
-timesteps_per_iteration: 20000
+timesteps_per_iteration: 0
 train_batch_size: 64
 learning_starts: 20000
 buffer_size: 5000
+horizon: 250
 # "batch_mode": "complete_episodes"
 lr: 0.0025
 # "exploration_config": {
@@ -52,8 +54,8 @@ env_config:
 
   experiment:
     hero:
-      routes: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
-      scenarios: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
+      routes: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
+      scenarios: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1
       ego_vehicle_type: "vehicle.lincoln.mkz2017"
@@ -68,4 +70,4 @@ env_config:
     others:
       framestack: 4
       max_time_idle: 600
-      max_time_episode: 500 #6400
+      max_time_episode: 250 #6400

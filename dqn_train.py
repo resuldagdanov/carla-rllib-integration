@@ -11,6 +11,7 @@ You can visualize experiment results in ~/ray_results using TensorBoard.
 from __future__ import print_function
 
 import argparse
+from distutils.command.config import config
 import os
 import yaml
 
@@ -26,6 +27,9 @@ from dqn_example.dqn_experiment import DQNExperiment
 from dqn_example.dqn_callbacks import DQNCallbacks
 from dqn_example.dqn_trainer import CustomDQNTrainer
 
+from ray.rllib.agents.dqn import DQNTrainer
+from ray.tune.logger import pretty_print
+
 # Set the experiment to EXPERIMENT_CLASS so that it is passed to the configuration
 EXPERIMENT_CLASS = DQNExperiment
 
@@ -33,19 +37,19 @@ EXPERIMENT_CLASS = DQNExperiment
 def run(args):
     try:
         ray.init(address= "auto" if args.auto else None)
-        tune.run(CustomDQNTrainer,
-                 name=args.name,
-                 local_dir=args.directory,
-                 stop={"perf/ram_util_percent": 85.0},
-                 checkpoint_freq=1,
-                 checkpoint_at_end=True,
-                 restore=get_checkpoint(args.name, args.directory,
-                                        args.restore, args.overwrite),
-                 config=args.config,
-                 queue_trials=True)
-                 #num_samples=2
+        trainer = DQNTrainer(config=args.config, env=CarlaEnv)
+
+        num_of_episodes = 5
+
+        for eps in range(num_of_episodes):
+            result = trainer.train()
+            print("\nResult: ", pretty_print(result))
+
+            checkpoint = trainer.save()
+            print("checkpoint saved at:", checkpoint)
 
     finally:
+        print("[Info]: Shut Down!")
         kill_all_servers()
         ray.shutdown()
 
