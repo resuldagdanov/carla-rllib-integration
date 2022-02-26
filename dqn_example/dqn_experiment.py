@@ -28,8 +28,9 @@ class DQNExperiment(BaseExperiment):
         self.last_action = None
 
     def reset(self):
-        """Called at the beginning and each time the simulation is reset"""
-
+        """
+        Called at the beginning and each time the simulation is reset
+        """
         # Ending variables
         self.time_idle = 0
         self.time_episode = 0
@@ -49,7 +50,9 @@ class DQNExperiment(BaseExperiment):
         self.last_heading_deviation = 0
 
     def get_action_space(self):
-        """Returns the action space, in this case, a discrete space"""
+        """
+        Returns the action space, in this case, a discrete space
+        """
         return Discrete(len(self.get_actions()))
 
     def get_observation_space(self):
@@ -100,7 +103,9 @@ class DQNExperiment(BaseExperiment):
         }
 
     def compute_action(self, action):
-        """Given the action, returns a carla.VehicleControl() which will be applied to the hero"""
+        """
+        Given the action, returns a carla.VehicleControl() which will be applied to the hero
+        """
         action_control = self.get_actions()[int(action)]
 
         action = carla.VehicleControl()
@@ -115,7 +120,8 @@ class DQNExperiment(BaseExperiment):
         return action
 
     def get_observation(self, sensor_data):
-        """Function to do all the post processing of observations (sensor data).
+        """
+        Function to do all the post processing of observations (sensor data).
 
         :param sensor_data: dictionary {sensor_name: sensor_data}
 
@@ -123,7 +129,8 @@ class DQNExperiment(BaseExperiment):
         as well as a variable with additional information about such observation.
         The information variable can be empty
         """
-        image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
+        # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
+        image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
 
         if self.prev_image_0 is None:
             self.prev_image_0 = image
@@ -146,12 +153,16 @@ class DQNExperiment(BaseExperiment):
         return images, {}
 
     def get_speed(self, hero):
-        """Computes the speed of the hero vehicle in Km/h"""
+        """
+        Computes the speed of the hero vehicle in Km/h
+        """
         vel = hero.get_velocity()
         return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
 
     def get_done_status(self, observation, core):
-        """Returns whether or not the experiment has to end"""
+        """
+        Returns whether or not the experiment has to end
+        """
         hero = core.hero
         self.done_time_idle = self.max_time_idle < self.time_idle
         if self.get_speed(hero) > 1.0:
@@ -164,7 +175,9 @@ class DQNExperiment(BaseExperiment):
         return self.done_time_idle or self.done_falling or self.done_time_episode
 
     def compute_reward(self, observation, core):
-        """Computes the reward"""
+        """
+        Computes the reward
+        """
         def unit_vector(vector):
             return vector / np.linalg.norm(vector)
         def compute_angle(u, v):

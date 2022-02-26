@@ -64,6 +64,15 @@ env_config:
           type: "sensor.birdview"
           size: 300
           radius: 15
+        front_camera:
+          type: "sensor.camera.rgb"
+          image_size_x: 300 # 400 # width
+          image_size_y: 300 # height
+          fov: 100 # degrees
+          lens_circle_multiplier: 3.0
+          lens_circle_falloff: 3.0
+          chromatic_aberration_intensity: 0.5
+          chromatic_aberration_offset: 0
     background_activity:
       tm_hybrid_mode: True
     town: "Town05"

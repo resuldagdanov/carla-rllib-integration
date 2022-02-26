@@ -21,12 +21,15 @@ from rllib_integration.carla_core import kill_all_servers
 from dqn_example.dqn_experiment import DQNExperiment
 from dqn_example.dqn_inference_model import CustomDQNModel
 
+
 # Set the experiment to EXPERIMENT_CLASS so that it is passed to the configuration
 EXPERIMENT_CLASS = DQNExperiment
 
-def get_gpu_or_cpu_number(device):
-    """Returns the GPU number on which the tensors will be run. Returns -1 if the CPU is used"""
 
+def get_gpu_or_cpu_number(device):
+    """
+    Returns the GPU number on which the tensors will be run. Returns -1 if the CPU is used
+    """
     if 'cuda' in device:
         if not torch.cuda.is_available():
             raise RuntimeError("Torch cuda check failed, your drivers might not be correctly installed")
@@ -40,6 +43,7 @@ def get_gpu_or_cpu_number(device):
 
     return gpu_n
 
+
 def parse_config(args):
     """
     Parses the .yaml configuration file into a readable dictionary
@@ -51,18 +55,17 @@ def parse_config(args):
 
     return config
 
+
 def main():
-    argparser = argparse.ArgumentParser(
-        description=__doc__)
+    argparser = argparse.ArgumentParser(description=__doc__)
     argparser.add_argument("configuration_file",
-                           help="Configuration file of the run (*.yaml)")
+                            help="Configuration file of the run (*.yaml)")
     argparser.add_argument("checkpoint",
-                           help='Checkpoint file with the model information (*.pt or *.pth)')
-    argparser.add_argument(
-        '-d', '--device',
-        metavar='D',
-        default= 'cuda:0',
-        help='Device on with the tensors will be run. Defaults to (cuda:0)')
+                            help='Checkpoint file with the model information (*.pt or *.pth)')
+    argparser.add_argument('-d', '--device',
+                            metavar='D',
+                            default= 'cuda:0',
+                            help='Device on with the tensors will be run. Defaults to (cuda:0)')
 
     args = argparser.parse_args()
     args.config = parse_config(args)
@@ -89,6 +92,7 @@ def main():
 
     finally:
         kill_all_servers()
+
 
 if __name__ == '__main__':
 

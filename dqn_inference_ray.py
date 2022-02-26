@@ -22,6 +22,7 @@ from dqn_example.dqn_experiment import DQNExperiment
 # Set the experiment to EXPERIMENT_CLASS so that it is passed to the configuration
 EXPERIMENT_CLASS = DQNExperiment
 
+
 def parse_config(args):
     """
     Parses the .yaml configuration file into a readable dictionary
@@ -37,15 +38,15 @@ def parse_config(args):
 
     return config
 
+
 def main():
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument("configuration_file",
-                           help="Configuration file (*.yaml)")
-    argparser.add_argument(
-        "checkpoint",
-        type=str,
-        help="Checkpoint from which to roll out.")
+                            help="Configuration file (*.yaml)")
+    argparser.add_argument("checkpoint",
+                            type=str,
+                            help="Checkpoint from which to roll out.")
 
     args = argparser.parse_args()
     args.config = parse_config(args)
@@ -67,9 +68,11 @@ def main():
 
     except KeyboardInterrupt:
         print("\nshutdown by user")
+    
     finally:
         ray.shutdown()
         kill_all_servers()
+
 
 if __name__ == "__main__":
 

@@ -28,6 +28,7 @@ from custom_scenario_runner.custom_scenario_manager import CustomScenarioManager
 
 from threading import Thread
 
+
 BASE_CORE_CONFIG = {
     "host": "localhost",  # Client host
     "timeout": 10.0,  # Timeout of the client
@@ -43,11 +44,16 @@ BASE_CORE_CONFIG = {
 
 
 def is_used(port):
-    """Checks whether or not a port is used"""
+    """
+    Checks whether or not a port is used
+    """
     return port in [conn.laddr.port for conn in psutil.net_connections()]
 
+
 def kill_all_servers():
-    """Kill all PIDs that start with Carla"""
+    """
+    Kill all PIDs that start with Carla
+    """
     processes = [p for p in psutil.process_iter() if "carla" in p.name().lower()]
     for process in processes:
         os.kill(process.pid, signal.SIGKILL)
@@ -73,7 +79,9 @@ class CarlaCore:
         self.connect_client()
 
     def init_server(self):
-        """Start a server on a random port"""
+        """
+        Start a server on a random port
+        """
         self.server_port = random.randint(15000, 32000)
 
         # Ray tends to start all processes simultaneously. Use random delays to avoid problems
@@ -121,8 +129,9 @@ class CarlaCore:
         )
 
     def connect_client(self):
-        """Connect to the client"""
-
+        """
+        Connect to the client
+        """
         for i in range(self.config["retries_on_error"]):
             try:
                 self.client = carla.Client(self.config["host"], self.server_port)
@@ -146,8 +155,9 @@ class CarlaCore:
         raise Exception("Cannot connect to server. Try increasing 'timeout' or 'retries_on_error' at the carla configuration")
 
     def setup_experiment(self, experiment_config):
-        """Initialize the hero and sensors"""
-
+        """
+        Initialize the hero and sensors
+        """
         self.world = self.client.load_world(
             map_name = experiment_config["town"],
             reset_settings = False,
@@ -180,8 +190,9 @@ class CarlaCore:
         self.world.tick()
 
     def reset_hero(self, hero_config):
-        """This function resets / spawns the hero vehicle and its sensors"""
-        
+        """
+        This function resets / spawns the hero vehicle and its sensors
+        """
         # Part 1: destroy all sensors (if necessary)
         self.sensor_interface.destroy()
 
@@ -222,7 +233,7 @@ class CarlaCore:
         self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
         self.hero = self.scenario.ego_vehicle
         
-        # TODO: change of weather can be added
+        # TODO: change of weather will be added
 
         # Part 3: Spawn the new sensors
         for name, attributes in hero_config["sensors"].items():
@@ -240,8 +251,9 @@ class CarlaCore:
         return self.hero
 
     def tick(self, control):
-        """Performs one tick of the simulation, moving all actors, and getting the sensor data"""
-
+        """
+        Performs one tick of the simulation, moving all actors, and getting the sensor data
+        """
         # Move hero vehicle and scenario vehicles
         if control is not None:
             timestamp = None
@@ -263,7 +275,9 @@ class CarlaCore:
         return self.get_sensor_data()
 
     def set_spectator_camera_view(self):
-        """This positions the spectator as a 3rd person view of the hero vehicle"""
+        """
+        This positions the spectator as a 3rd person view of the hero vehicle
+        """
         transform = self.hero.get_transform()
 
         # Get the camera position
@@ -286,7 +300,9 @@ class CarlaCore:
         )
 
     def get_sensor_data(self):
-        """Returns the data sent by the different sensors at this tick"""
+        """
+        Returns the data sent by the different sensors at this tick
+        """
         sensor_data = self.sensor_interface.get_data()
         # print("---------")
         # world_frame = self.world.get_snapshot().frame

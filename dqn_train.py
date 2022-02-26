@@ -30,6 +30,7 @@ from dqn_example.dqn_trainer import CustomDQNTrainer
 from ray.rllib.agents.dqn import DQNTrainer
 from ray.tune.logger import pretty_print
 
+
 # Set the experiment to EXPERIMENT_CLASS so that it is passed to the configuration
 EXPERIMENT_CLASS = DQNExperiment
 

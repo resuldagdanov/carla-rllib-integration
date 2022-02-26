@@ -9,6 +9,7 @@
 import carla
 from rllib_integration.helper import join_dicts
 
+
 BASE_EXPERIMENT_CONFIG = {
     "hero": {
         "blueprint": "vehicle.lincoln.mkz_2017",
@@ -38,35 +39,46 @@ BASE_EXPERIMENT_CONFIG = {
     "weather": 'ClearNoon'
 }
 
+
 class BaseExperiment(object):
     def __init__(self, config):
         self.config = join_dicts(BASE_EXPERIMENT_CONFIG, config)
 
     def reset(self):
-        """Called at the beginning and each time the simulation is reset"""
+        """
+        Called at the beginning and each time the simulation is reset
+        """
         pass
 
     def get_action_space(self):
-        """Returns the action space"""
+        """
+        Returns the action space
+        """
         raise NotImplementedError
 
     def get_observation_space(self):
-        """Returns the observation space"""
+        """
+        Returns the observation space
+        """
         raise NotImplementedError
 
     def get_actions(self):
-        """Returns the actions"""
+        """
+        Returns the actions
+        """
         raise NotImplementedError
 
     def compute_action(self, action):
-        """Given the action, returns a carla.VehicleControl() which will be applied to the hero
+        """
+        Given the action, returns a carla.VehicleControl() which will be applied to the hero
         
         :param action: value outputted by the policy
         """
         raise NotImplementedError
 
     def get_observation(self, sensor_data):
-        """Function to do all the post processing of observations (sensor data).
+        """
+        Function to do all the post processing of observations (sensor data).
 
         :param sensor_data: dictionary {sensor_name: sensor_data}
 
@@ -77,9 +89,13 @@ class BaseExperiment(object):
         return NotImplementedError
 
     def get_done_status(self, observation, core):
-        """Returns whether or not the experiment has to end"""
+        """
+        Returns whether or not the experiment has to end
+        """
         return NotImplementedError
 
     def compute_reward(self, observation, core):
-        """Computes the reward"""
+        """
+        Computes the reward
+        """
         return NotImplementedError

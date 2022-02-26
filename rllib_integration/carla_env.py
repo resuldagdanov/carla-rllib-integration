@@ -14,13 +14,16 @@ import gym
 from rllib_integration.carla_core import CarlaCore
 from srunner.scenariomanager.carla_data_provider import *
 
+
 class CarlaEnv(gym.Env):
     """
     This is a carla environment, responsible of handling all the CARLA related steps of the training.
     """
 
     def __init__(self, config):
-        """Initializes the environment"""
+        """
+        Initializes the environment
+        """
         self.config = config
 
         self.experiment = self.config["experiment"]["type"](self.config["experiment"])
@@ -44,8 +47,10 @@ class CarlaEnv(gym.Env):
         return observation
 
     def step(self, action):
-        """Computes one tick of the environment in order to return the new observation,
-        as well as the rewards"""
+        """
+        Computes one tick of the environment in order to return the new observation,
+        as well as the rewards
+        """
         control = self.experiment.compute_action(action)
         sensor_data = self.core.tick(control)
 
