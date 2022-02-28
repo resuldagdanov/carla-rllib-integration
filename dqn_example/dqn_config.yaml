@@ -13,8 +13,19 @@ train_batch_size: 64
 learning_starts: 20000
 buffer_size: 5000
 horizon: 250
-# "batch_mode": "complete_episodes"
 lr: 0.0025
+
+# "batch_mode": "complete_episodes"
+
+# === RAINBOW ===
+num_atoms: 51 # more than 1
+v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
+v_max: 10.0
+noisy: True
+dueling: True
+double_q: True
+n_step: 2 #between 1 and 10
+prioritized_replay: True
 
 # === EXPLORATION ===
 # "exploration_config": {
