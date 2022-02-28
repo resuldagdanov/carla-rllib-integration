@@ -42,6 +42,29 @@ BASE_CORE_CONFIG = {
     "show_display": False  # Whether or not the server will be displayed
 }
 
+WEATHERS = {
+        'ClearNoon': carla.WeatherParameters.ClearNoon,
+        'ClearSunset': carla.WeatherParameters.ClearSunset,
+
+        'CloudyNoon': carla.WeatherParameters.CloudyNoon,
+        'CloudySunset': carla.WeatherParameters.CloudySunset,
+
+        'WetNoon': carla.WeatherParameters.WetNoon,
+        'WetSunset': carla.WeatherParameters.WetSunset,
+
+        'MidRainyNoon': carla.WeatherParameters.MidRainyNoon,
+        'MidRainSunset': carla.WeatherParameters.MidRainSunset,
+
+        'WetCloudyNoon': carla.WeatherParameters.WetCloudyNoon,
+        'WetCloudySunset': carla.WeatherParameters.WetCloudySunset,
+
+        'HardRainNoon': carla.WeatherParameters.HardRainNoon,
+        'HardRainSunset': carla.WeatherParameters.HardRainSunset,
+
+        'SoftRainNoon': carla.WeatherParameters.SoftRainNoon,
+        'SoftRainSunset': carla.WeatherParameters.SoftRainSunset,
+}
+WEATHERS_IDS = list(WEATHERS)
 
 def is_used(port):
     """
@@ -166,8 +189,8 @@ class CarlaCore:
         self.map = self.world.get_map()
 
         # Choose the weather of the simulation
-        weather = getattr(carla.WeatherParameters, experiment_config["weather"])
-        self.world.set_weather(weather)
+        # weather = getattr(carla.WeatherParameters, experiment_config["weather"])
+        # self.world.set_weather(weather)
 
         self.tm_port = self.server_port // 10 + self.server_port % 10
         while is_used(self.tm_port):
@@ -237,8 +260,6 @@ class CarlaCore:
             self.scenario_cleanup()
 
         self.scenario_and_hero_init(hero_config)
-        
-        # TODO: change of weather will be added
 
         # Part 3: Spawn the new sensors
         for name, attributes in hero_config["sensors"].items():
@@ -255,10 +276,19 @@ class CarlaCore:
 
         return self.hero
 
+    def change_weather(self):
+        index = random.choice(range(len(WEATHERS)))
+
+        self.weather_id = WEATHERS_IDS[index]
+        self.world.set_weather(WEATHERS[WEATHERS_IDS[index]])
+
     def tick(self, control):
         """
         Performs one tick of the simulation, moving all actors, and getting the sensor data
         """
+        
+        self.change_weather() # TODO: should we avoid it when we are evaluating the model?
+
         # Move hero vehicle and scenario vehicles
         if control is not None:
             timestamp = None
