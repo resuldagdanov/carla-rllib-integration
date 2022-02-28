@@ -45,7 +45,7 @@ class CarlaEnv(gym.Env):
 
         # Tick once and get the observations
         sensor_data = self.core.tick(None)
-        observation, _ = self.experiment.get_observation(sensor_data)
+        observation, _ = self.experiment.get_observation(sensor_data, self.hero)
 
         return observation
 
@@ -57,7 +57,7 @@ class CarlaEnv(gym.Env):
         control = self.experiment.compute_action(action)
         sensor_data = self.core.tick(control)
 
-        observation, info = self.experiment.get_observation(sensor_data)
+        observation, info = self.experiment.get_observation(sensor_data, self.hero)
         done = self.experiment.get_done_status(observation, self.core)
         reward = self.experiment.compute_reward(observation, self.core)
 
@@ -66,4 +66,3 @@ class CarlaEnv(gym.Env):
         if done:
             print("*******End of the episode!*******")
         return observation, reward, done, info
-        

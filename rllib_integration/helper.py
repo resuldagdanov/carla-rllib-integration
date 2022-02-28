@@ -6,6 +6,7 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
+
 import collections.abc
 import os
 import shutil
@@ -132,39 +133,41 @@ def get_speed(hero):
     return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
 
 
+def get_angle_to(pos, theta, target):
+    R = np.array([
+        [np.cos(theta), -np.sin(theta)],
+        [np.sin(theta),  np.cos(theta)],
+        ])
 
-def calculate_high_level_action(self, high_level_action, compass, gps, near_node, far_node, data):
-    #0 brake
-    #1 no brake - go to left lane of next_waypoint
-    #2 no brake - keep lane (stay at next_waypoint's lane)
-    #3 no brake - go to right lane of next_waypoint
+    aim = R.T.dot(target - pos)
+    angle = -np.degrees(np.arctan2(-aim[1], aim[0]))
+    angle = 0.0 if np.isnan(angle) else angle 
 
-    if high_level_action == 1: # left
-        offset = -3.5
-        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+    return angle
+
+
+def get_control(turn_controller, speed_controller, target, gps, theta, speed):
+    # steering
+    angle_unnorm = get_angle_to(pos=gps, theta=theta, target=target)
+    angle = angle_unnorm / 90
+
+    steer = turn_controller.step(angle)
+    steer = np.clip(steer, -1.0, 1.0)
+    steer = round(steer, 3)
+
+    # acceleration
+    angle_far_unnorm = get_angle_to(pos=gps, theta=theta, target=target)
+    should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
+    target_speed = 4.0 if should_slow else 7.0
     
-    elif high_level_action == 3: # right
-        offset = 3.5
-        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-    
-    else: # keep lane
-        offset = 0.0
-        new_near_node = near_node
+    delta = np.clip(target_speed - speed, 0.0, 0.25)
+    throttle = speed_controller.step(delta)
+    throttle = np.clip(throttle, 0.0, 0.75)
 
-    # get auto-pilot actions
-    steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
-
-    if high_level_action == 0: # brake
-        throttle = 0.0
-        brake = 1.0
-    else: # no brake
-        throttle = throttle
-        brake = 0.0
-
-    return throttle, steer, brake, angle
+    return steer, throttle, angle
 
 
-def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
+def shift_point(ego_compass, ego_gps, near_node, offset_amount):
     # rotation matrix
     R = np.array([
         [np.cos(np.pi / 2 + ego_compass), -np.sin(np.pi / 2 + ego_compass)],
@@ -187,6 +190,39 @@ def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
     new_near_node[1] += ego_gps[1]
 
     return new_near_node
+
+
+def calculate_high_level_action(turn_controller, speed_controller, high_level_action, gps, theta, speed, near_node):
+    """
+    0 -> brake
+    1 -> no brake - go to left lane of next_waypoint
+    2 -> no brake - keep lane (stay at next_waypoint's lane)
+    3 -> no brake - go to right lane of next_waypoint
+    """
+
+    if high_level_action == 1: # left
+        offset = -3.5
+        new_near_node = shift_point(ego_compass=theta, ego_gps=gps, near_node=near_node, offset_amount=offset)
+    
+    elif high_level_action == 3: # right
+        offset = 3.5
+        new_near_node = shift_point(ego_compass=theta, ego_gps=gps, near_node=near_node, offset_amount=offset)
+    
+    else: # keep lane
+        offset = 0.0
+        new_near_node = near_node
+
+    # get auto-pilot actions
+    steer, throttle, angle = get_control(turn_controller, speed_controller, new_near_node, gps, theta, speed)
+
+    if high_level_action == 0: # brake
+        throttle = 0.0
+        brake = 1.0
+    else: # no brake
+        throttle = throttle
+        brake = 0.0
+
+    return throttle, steer, brake
 
 
 class RoutePlanner(object):
@@ -238,3 +274,28 @@ class RoutePlanner(object):
                 self.route.popleft()
 
         return self.route[1]
+
+
+class PIDController(object):
+    def __init__(self, K_P=1.0, K_I=0.0, K_D=0.0, n=20):
+        self._K_P = K_P
+        self._K_I = K_I
+        self._K_D = K_D
+
+        self._window = deque([0 for _ in range(n)], maxlen=n)
+        self._max = 0.0
+        self._min = 0.0
+
+    def step(self, error):
+        self._window.append(error)
+        self._max = max(self._max, abs(error))
+        self._min = -abs(self._max)
+
+        if len(self._window) >= 2:
+            integral = np.mean(self._window)
+            derivative = (self._window[-1] - self._window[-2])
+        else:
+            integral = 0.0
+            derivative = 0.0
+
+        return self._K_P * error + self._K_I * integral + self._K_D * derivative

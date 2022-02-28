@@ -106,7 +106,8 @@ def convert_json_to_transform(actor_dict):
     """
     Convert a JSON string to a CARLA transform
     """
-    return carla.Transform(location=carla.Location(x=float(actor_dict['x']), y=float(actor_dict['y']),
+    return carla.Transform(location=carla.Location(x=float(actor_dict['x']),
+                                                   y=float(actor_dict['y']),
                                                    z=float(actor_dict['z'])),
                            rotation=carla.Rotation(roll=0.0, pitch=0.0, yaw=float(actor_dict['yaw'])))
 

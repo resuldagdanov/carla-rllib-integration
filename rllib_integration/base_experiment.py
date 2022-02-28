@@ -76,7 +76,7 @@ class BaseExperiment(object):
         """
         raise NotImplementedError
 
-    def get_observation(self, sensor_data):
+    def get_observation(self, sensor_data, hero):
         """
         Function to do all the post processing of observations (sensor data).
 

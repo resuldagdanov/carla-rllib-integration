@@ -13,7 +13,7 @@ from gym.spaces import Box, Discrete
 import carla
 
 from rllib_integration.base_experiment import BaseExperiment
-from rllib_integration.helper import post_process_image, get_position, get_speed
+from rllib_integration.helper import post_process_image, get_position, get_speed, calculate_high_level_action, PIDController
 
 
 class DQNExperiment(BaseExperiment):
@@ -28,8 +28,16 @@ class DQNExperiment(BaseExperiment):
         self.last_heading_deviation = 0
         self.last_action = None
 
+        self.turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
+        self.speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
+
         self.route_planner = None
         self.command_planner = None
+
+        self.ego_gps = None
+        self.compass = None
+        self.speed_ms = None
+        self.near_node = None
 
     def reset(self):
         """
@@ -57,7 +65,7 @@ class DQNExperiment(BaseExperiment):
         """
         Returns the action space, in this case, a discrete space
         """
-        return Discrete(len(self.get_actions()))
+        return Discrete(4)
 
     def get_observation_space(self):
         num_of_channels = 3
@@ -73,54 +81,29 @@ class DQNExperiment(BaseExperiment):
         )
         return image_space
 
-    def get_actions(self):
-        return {
-            0: [0.0, 0.00, 0.0, False, False],  # Coast
-            1: [0.0, 0.00, 1.0, False, False],  # Apply Break
-            2: [0.0, 0.75, 0.0, False, False],  # Right
-            3: [0.0, 0.50, 0.0, False, False],  # Right
-            4: [0.0, 0.25, 0.0, False, False],  # Right
-            5: [0.0, -0.75, 0.0, False, False],  # Left
-            6: [0.0, -0.50, 0.0, False, False],  # Left
-            7: [0.0, -0.25, 0.0, False, False],  # Left
-            8: [0.3, 0.00, 0.0, False, False],  # Straight
-            9: [0.3, 0.75, 0.0, False, False],  # Right
-            10: [0.3, 0.50, 0.0, False, False],  # Right
-            11: [0.3, 0.25, 0.0, False, False],  # Right
-            12: [0.3, -0.75, 0.0, False, False],  # Left
-            13: [0.3, -0.50, 0.0, False, False],  # Left
-            14: [0.3, -0.25, 0.0, False, False],  # Left
-            15: [0.6, 0.00, 0.0, False, False],  # Straight
-            16: [0.6, 0.75, 0.0, False, False],  # Right
-            17: [0.6, 0.50, 0.0, False, False],  # Right
-            18: [0.6, 0.25, 0.0, False, False],  # Right
-            19: [0.6, -0.75, 0.0, False, False],  # Left
-            20: [0.6, -0.50, 0.0, False, False],  # Left
-            21: [0.6, -0.25, 0.0, False, False],  # Left
-            22: [1.0, 0.00, 0.0, False, False],  # Straight
-            23: [1.0, 0.75, 0.0, False, False],  # Right
-            24: [1.0, 0.50, 0.0, False, False],  # Right
-            25: [1.0, 0.25, 0.0, False, False],  # Right
-        }
-
     def compute_action(self, action):
         """
         Given the action, returns a carla.VehicleControl() which will be applied to the hero
         """
-        action_control = self.get_actions()[int(action)]
+        throttle, steer, brake = calculate_high_level_action(turn_controller=self.turn_controller,
+                                                             speed_controller=self.speed_controller,
+                                                             high_level_action=action,
+                                                             gps=self.ego_gps,
+                                                             theta=self.compass,
+                                                             speed=self.speed_ms,
+                                                             near_node=self.near_node)
 
         action = carla.VehicleControl()
-        action.throttle = action_control[0]
-        action.steer = action_control[1]
-        action.brake = action_control[2]
-        action.reverse = action_control[3]
-        action.hand_brake = action_control[4]
+        action.throttle = float(throttle)
+        action.steer = float(steer)
+        action.brake = float(brake)
+        action.reverse = False
+        action.hand_brake = False
 
         self.last_action = action
-
         return action
 
-    def get_observation(self, sensor_data):
+    def get_observation(self, sensor_data, hero):
         """
         Function to do all the post processing of observations (sensor data).
 
@@ -130,17 +113,14 @@ class DQNExperiment(BaseExperiment):
         as well as a variable with additional information about such observation.
         The information variable can be empty
         """
-        ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
-        compass = sensor_data['imu'][1][-1]
+        self.ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
+        self.compass = sensor_data['imu'][1][-1]
 
-        near_node, near_command = self.route_planner.run_step(gps=ego_gps)
-        far_node, far_command = self.command_planner.run_step(gps=ego_gps)
+        speed_kmph = get_speed(hero)
+        self.speed_ms = 0.277778 * speed_kmph
 
-        print("self.route_planner : ", self.route_planner)
-        print("ego_gps : ", ego_gps)
-        print("compass : ", compass)
-        print("near_node : ", near_node)
-        print("far_node : ", far_node)
+        self.near_node, near_command = self.route_planner.run_step(gps=self.ego_gps)
+        far_node, far_command = self.command_planner.run_step(gps=self.ego_gps)
 
         # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
         image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
@@ -182,6 +162,7 @@ class DQNExperiment(BaseExperiment):
         self.time_episode += 1
         self.done_time_episode = self.max_time_episode < self.time_episode
         self.done_falling = hero.get_location().z < -0.5
+
         return self.done_time_idle or self.done_falling or self.done_time_episode
 
     def compute_reward(self, observation, core):
@@ -270,4 +251,3 @@ class DQNExperiment(BaseExperiment):
             reward += 100
 
         return reward
-        

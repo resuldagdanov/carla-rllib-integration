@@ -63,6 +63,7 @@ def main():
         obs = env.reset()
 
         while True:
+            # TODO: compute action function inputs an action rather than an observation
             action = agent.compute_action(obs)
             obs, _, _, _ = env.step(action)
 
