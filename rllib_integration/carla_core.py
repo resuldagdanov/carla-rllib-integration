@@ -73,7 +73,7 @@ class CarlaCore:
         self.config = join_dicts(BASE_CORE_CONFIG, config)
         self.sensor_interface = SensorInterface()
 
-        self.scenario_exist = None
+        self.is_scenario_and_hero_initialized = False
 
         self.init_server()
         self.connect_client()
@@ -183,45 +183,20 @@ class CarlaCore:
 
         self.world.reset_all_traffic_lights()
 
+        self.world.tick()
+
+    def scenario_cleanup(self):
+        self.manager.stop_scenario()
+        self.scenario.remove_all_actors()
+        if self.manager:
+            self.manager.cleanup()
+        CarlaDataProvider.cleanup()
+        print("Scenario cleaning up")
+
+    def scenario_and_hero_init(self, hero_config):
         CarlaDataProvider.set_client(self.client)
         CarlaDataProvider.set_world(self.world)
         CarlaDataProvider.set_traffic_manager_port(self.tm_port)
-
-        self.world.tick()
-
-    def reset_hero(self, hero_config):
-        """
-        This function resets / spawns the hero vehicle and its sensors
-        """
-        # Part 1: destroy all sensors (if necessary)
-        self.sensor_interface.destroy()
-
-        self.world.tick()
-
-        self.hero_blueprints = self.world.get_blueprint_library().find(hero_config['ego_vehicle_type'])
-        self.hero_blueprints.set_attribute("role_name", "hero")
-
-        # If already spawned, destroy it
-        if self.hero is not None:
-            self.hero.destroy()
-            self.hero = None
-
-        """
-        Spawn or update the ego vehicles
-        """
-        
-        print(f"self.scenario_exist {self.scenario_exist}")
-
-        # TODO: perform successful cleanup
-        """
-        if self.scenario_exist is not None:
-            self.manager.stop_scenario()
-            self.scenario.remove_all_actors()
-            if self.manager:
-                self.manager.cleanup()
-            CarlaDataProvider.cleanup()
-            print("Scenario cleaning up")
-        """
 
         self.manager = CustomScenarioManager(self.config["timeout"], self.config["debug_mode"] > 1)
         route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
@@ -232,6 +207,36 @@ class CarlaCore:
         self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
         self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
         self.hero = self.scenario.ego_vehicle
+
+        if not self.is_scenario_and_hero_initialized:
+            self.is_scenario_and_hero_initialized = True
+
+    def reset_hero(self, hero_config):
+        """
+        This function resets / spawns the hero vehicle and its sensors
+        """
+        # Part 1: destroy all sensors (if necessary)
+        self.sensor_interface.destroy()
+
+        self.world.tick()
+
+        """
+        Spawn or update the ego vehicles
+        """
+
+        self.hero_blueprints = self.world.get_blueprint_library().find(hero_config['ego_vehicle_type'])
+        self.hero_blueprints.set_attribute("role_name", "hero")
+
+        # If already spawned, destroy it
+        if self.hero is not None:
+            self.hero.destroy()
+            self.hero = None
+        
+        print(f"self.is_scenario_and_hero_initialized {self.is_scenario_and_hero_initialized}")
+        if self.is_scenario_and_hero_initialized:
+            self.scenario_cleanup()
+
+        self.scenario_and_hero_init(hero_config)
         
         # TODO: change of weather will be added
 

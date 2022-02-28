@@ -1,3 +1,4 @@
+
 # To see the complete list of configurable parameters see:
 # https://github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
 # === GENERAL ===
@@ -66,8 +67,8 @@ env_config:
     debug_mode: 1
   experiment:
     hero:
-      routes: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
-      scenarios: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
+      routes: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
+      scenarios: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1
       ego_vehicle_type: "vehicle.lincoln.mkz2017"

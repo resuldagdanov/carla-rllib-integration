@@ -40,7 +40,7 @@ def run(args):
         ray.init(address= "auto" if args.auto else None)
         trainer = DQNTrainer(config=args.config, env=CarlaEnv)
 
-        num_of_episodes = 5
+        num_of_episodes = 2
 
         for eps in range(num_of_episodes):
             result = trainer.train()
