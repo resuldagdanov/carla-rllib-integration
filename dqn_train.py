@@ -64,6 +64,7 @@ def parse_config(args):
         config["env"] = CarlaEnv
         config["env_config"]["experiment"]["type"] = EXPERIMENT_CLASS
         config["callbacks"] = DQNCallbacks
+        config["evaluation_config"]["env_config"] = config["env_config"]
 
     return config
 

@@ -1,10 +1,11 @@
 # To see the complete list of configurable parameters see:
 # https://github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
+# === GENERAL ===
 framework: "torch"
 num_workers: 1
-num_gpus: 1
+num_gpus: 0
 num_gpus_per_worker: 1
-num_cpus_per_worker: 2
+num_cpus_per_worker: 4
 rollout_fragment_length: 16
 timesteps_per_iteration: 0
 train_batch_size: 64
@@ -13,6 +14,8 @@ buffer_size: 5000
 horizon: 250
 # "batch_mode": "complete_episodes"
 lr: 0.0025
+
+# === EXPLORATION ===
 # "exploration_config": {
 #   "type": "EpsilonGreedy",
 #   "initial_epsilon": 1.0,
@@ -24,6 +27,7 @@ exploration_config: {
   temperature: 1.0,
 }
 
+# === NETWORK ===
 hiddens: [256, 512]
 model: {
   dim: 300,
@@ -38,6 +42,15 @@ model: {
   ]
 }
 
+# === EVALUATION ===
+evaluation_interval: 0
+evaluation_num_episodes: 0
+evaluation_num_workers: 0
+evaluation_config:
+  env_config:
+  explore: False
+
+# === ENVIRONMENT ===
 env_config:
   carla:
     host: "localhost"
@@ -45,13 +58,12 @@ env_config:
     timestep: 0.05
     retries_on_error: 25
     resolution_x: 600
-    resolution_y: 600
+    resolution_y: 400
     quality_level: "Low"
     enable_map_assets: True
     enable_rendering: True
     show_display: True
     debug_mode: 1
-
   experiment:
     hero:
       routes: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
