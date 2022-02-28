@@ -48,7 +48,7 @@ from srunner.scenariomanager.scenarioatomics.atomic_criteria import (CollisionTe
                                                                      ActorSpeedAboveThresholdTest)
 
 from leaderboard.utils.route_parser import RouteParser, TRIGGER_THRESHOLD, TRIGGER_ANGLE_THRESHOLD
-from leaderboard.utils.route_manipulation import interpolate_trajectory
+from leaderboard.utils.route_manipulation import interpolate_trajectory, downsample_route
 
 ROUTESCENARIO = ["RouteScenario"]
 
@@ -187,27 +187,30 @@ class CustomRouteScenario(BasicScenario):
         Setup all relevant parameters and create scenarios along route
         """
         self.config = config
-        self.route = None
         self.sampled_scenarios_definitions = None
+        self.route = None
+        self.gps_route = None
+        self.global_plan_world_coord = None
+        self.global_plan = None
 
         self._update_route(world, config, debug_mode>0)
 
-        self.ego_vehicle = self._update_ego_vehicle(ego_vehicle_type)
+        self.ego_vehicle = self._update_ego_vehicle(ego_vehicle_type=ego_vehicle_type)
 
-        self.list_scenarios = self._build_scenario_instances(world,
-                                                             self.ego_vehicle,
-                                                             self.sampled_scenarios_definitions,
+        self.list_scenarios = self._build_scenario_instances(world=world,
+                                                             ego_vehicle=self.ego_vehicle,
+                                                             scenario_definitions=self.sampled_scenarios_definitions,
                                                              scenarios_per_tick=10,
                                                              timeout=self.timeout,
                                                              debug_mode=debug_mode>1)
 
         super(CustomRouteScenario, self).__init__(name=config.name,
-                                            ego_vehicles=[self.ego_vehicle],
-                                            config=config,
-                                            world=world,
-                                            debug_mode=debug_mode>1,
-                                            terminate_on_failure=False,
-                                            criteria_enable=criteria_enable)
+                                                  ego_vehicles=[self.ego_vehicle],
+                                                  config=config,
+                                                  world=world,
+                                                  debug_mode=debug_mode>1,
+                                                  terminate_on_failure=False,
+                                                  criteria_enable=criteria_enable)
 
     def _update_route(self, world, config, debug_mode):
         """
@@ -224,13 +227,13 @@ class CustomRouteScenario(BasicScenario):
         # prepare route's trajectory (interpolate and add the GPS route)
         gps_route, route = interpolate_trajectory(world, config.trajectory)
 
-        potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(
-            config.town, route, world_annotations)
+        potential_scenarios_definitions, _ = RouteParser.scan_route_for_scenarios(config.town, route, world_annotations)
 
         self.route = route
         CarlaDataProvider.set_ego_vehicle_route(convert_transform_to_location(self.route))
 
-        #config.agent.set_global_plan(gps_route, self.route) #TODO: this can be used for getting waypoints in the route
+        self.set_global_plan(global_plan_gps=gps_route, global_plan_world_coord=self.route)
+        self.gps_route = gps_route
 
         # Sample the scenarios to be used for this route instance.
         self.sampled_scenarios_definitions = self._scenario_sampling(potential_scenarios_definitions)
@@ -257,7 +260,8 @@ class CustomRouteScenario(BasicScenario):
         spectator = CarlaDataProvider.get_world().get_spectator()
         ego_trans = ego_vehicle.get_transform()
         ego_yaw = ego_trans.rotation.yaw
-        spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(x=-15 * math.cos(ego_yaw * 3.1415 / 180), y=-15 * math.sin(ego_yaw * 3.1415 / 180), z=15),
+        spectator.set_transform(carla.Transform(ego_trans.location + \
+                                carla.Location(x=-15 * math.cos(ego_yaw * 3.1415 / 180), y=-15 * math.sin(ego_yaw * 3.1415 / 180), z=15),
                                 carla.Rotation(yaw=ego_yaw, pitch=-30)))
 
         return ego_vehicle
@@ -573,6 +577,14 @@ class CustomRouteScenario(BasicScenario):
         criteria.append(blocked_criterion)
 
         return criteria
+    
+    def set_global_plan(self, global_plan_gps, global_plan_world_coord):
+        """
+        Set the plan (route) for the agent
+        """
+        ds_ids = downsample_route(global_plan_world_coord, 50)
+        self.global_plan_world_coord = [(global_plan_world_coord[x][0], global_plan_world_coord[x][1]) for x in ds_ids]
+        self.global_plan = [global_plan_gps[x] for x in ds_ids]
 
     def __del__(self):
         """

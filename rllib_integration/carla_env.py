@@ -19,7 +19,6 @@ class CarlaEnv(gym.Env):
     """
     This is a carla environment, responsible of handling all the CARLA related steps of the training.
     """
-
     def __init__(self, config):
         """
         Initializes the environment
@@ -39,6 +38,10 @@ class CarlaEnv(gym.Env):
         # Reset sensors hero and experiment
         self.hero = self.core.reset_hero(self.experiment.config["hero"])
         self.experiment.reset()
+
+        # set route planner into experiment
+        self.experiment.route_planner = self.core.route_planner
+        self.experiment.command_planner = self.core.command_planner
 
         # Tick once and get the observations
         sensor_data = self.core.tick(None)
@@ -63,3 +66,4 @@ class CarlaEnv(gym.Env):
         if done:
             print("*******End of the episode!*******")
         return observation, reward, done, info
+        

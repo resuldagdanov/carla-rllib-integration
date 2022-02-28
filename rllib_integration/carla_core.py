@@ -28,6 +28,8 @@ from custom_scenario_runner.custom_scenario_manager import CustomScenarioManager
 
 from threading import Thread
 
+from rllib_integration.helper import RoutePlanner
+
 
 BASE_CORE_CONFIG = {
     "host": "localhost",  # Client host
@@ -65,7 +67,9 @@ class CarlaCore:
     actor spawning and getting the sensors data.
     """
     def __init__(self, config={}):
-        """Initialize the server and client"""
+        """
+        Initialize the server and client
+        """
         self.client = None
         self.world = None
         self.map = None
@@ -205,10 +209,6 @@ class CarlaCore:
         if self.hero is not None:
             self.hero.destroy()
             self.hero = None
-
-        """
-        Spawn or update the ego vehicles
-        """
         
         print(f"self.scenario_exist {self.scenario_exist}")
 
@@ -229,8 +229,17 @@ class CarlaCore:
         # only one route is allowed
         route_indexer.peek()
         route_indexer_config = route_indexer.next()
+        
+        # create and load scenario
         self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
         self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
+
+        # make and set route planner
+        self.route_planner = RoutePlanner(min_distance=4.0, max_distance=50.0)
+        self.command_planner = RoutePlanner(min_distance=7.5, max_distance=25.0, debug_size=257)
+        self.route_planner.set_route(global_plan=self.scenario.gps_route, gps=True)
+        self.command_planner.set_route(global_plan=self.scenario.global_plan, gps=True)
+        
         self.hero = self.scenario.ego_vehicle
         
         # TODO: change of weather will be added

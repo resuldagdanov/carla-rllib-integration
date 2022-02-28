@@ -13,7 +13,7 @@ from gym.spaces import Box, Discrete
 import carla
 
 from rllib_integration.base_experiment import BaseExperiment
-from rllib_integration.helper import post_process_image
+from rllib_integration.helper import post_process_image, get_position, get_speed
 
 
 class DQNExperiment(BaseExperiment):
@@ -23,9 +23,13 @@ class DQNExperiment(BaseExperiment):
         self.frame_stack = self.config["others"]["framestack"]
         self.max_time_idle = self.config["others"]["max_time_idle"]
         self.max_time_episode = self.config["others"]["max_time_episode"]
+        
         self.allowed_types = [carla.LaneType.Driving, carla.LaneType.Parking]
         self.last_heading_deviation = 0
         self.last_action = None
+
+        self.route_planner = None
+        self.command_planner = None
 
     def reset(self):
         """
@@ -97,9 +101,6 @@ class DQNExperiment(BaseExperiment):
             23: [1.0, 0.75, 0.0, False, False],  # Right
             24: [1.0, 0.50, 0.0, False, False],  # Right
             25: [1.0, 0.25, 0.0, False, False],  # Right
-            26: [1.0, -0.75, 0.0, False, False],  # Left
-            27: [1.0, -0.50, 0.0, False, False],  # Left
-            28: [1.0, -0.25, 0.0, False, False],  # Left
         }
 
     def compute_action(self, action):
@@ -129,6 +130,18 @@ class DQNExperiment(BaseExperiment):
         as well as a variable with additional information about such observation.
         The information variable can be empty
         """
+        ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
+        compass = sensor_data['imu'][1][-1]
+
+        near_node, near_command = self.route_planner.run_step(gps=ego_gps)
+        far_node, far_command = self.command_planner.run_step(gps=ego_gps)
+
+        print("self.route_planner : ", self.route_planner)
+        print("ego_gps : ", ego_gps)
+        print("compass : ", compass)
+        print("near_node : ", near_node)
+        print("far_node : ", far_node)
+
         # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
         image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
 
@@ -152,23 +165,20 @@ class DQNExperiment(BaseExperiment):
 
         return images, {}
 
-    def get_speed(self, hero):
-        """
-        Computes the speed of the hero vehicle in Km/h
-        """
-        vel = hero.get_velocity()
-        return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
-
     def get_done_status(self, observation, core):
         """
         Returns whether or not the experiment has to end
         """
         hero = core.hero
+        speed_kmph = get_speed(hero)
+
         self.done_time_idle = self.max_time_idle < self.time_idle
-        if self.get_speed(hero) > 1.0:
+
+        if speed_kmph > 1.0:
             self.time_idle = 0
         else:
             self.time_idle += 1
+
         self.time_episode += 1
         self.done_time_episode = self.max_time_episode < self.time_episode
         self.done_falling = hero.get_location().z < -0.5
@@ -195,7 +205,7 @@ class DQNExperiment(BaseExperiment):
 
         # Hero-related variables
         hero_location = hero.get_location()
-        hero_velocity = self.get_speed(hero)
+        hero_velocity = get_speed(hero)
         hero_heading = hero.get_transform().get_forward_vector()
         hero_heading = [hero_heading.x, hero_heading.y]
 
@@ -260,3 +270,4 @@ class DQNExperiment(BaseExperiment):
             reward += 100
 
         return reward
+        

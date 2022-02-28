@@ -54,7 +54,11 @@ class CarlaSensor(BaseSensor):
         world = self.parent.get_world()
 
         type_ = self.attributes.pop("type", "")
-        transform = self.attributes.pop("transform", "1.3, 0.0, 2.3, 0.0, 0.0, 0.0")
+
+        if type_ == "sensor.camera.rgb":
+            transform = self.attributes.pop("transform", "1.3, 0.0, 2.3, 0.0, 0.0, 0.0")
+        else:
+            transform = self.attributes.pop("transform", "0.0, 0.0, 0.0, 0.0, 0.0, 0.0")
 
         if isinstance(transform, str):
             transform = [float(x) for x in transform.split(",")]

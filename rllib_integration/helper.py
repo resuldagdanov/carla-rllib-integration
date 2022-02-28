@@ -10,10 +10,13 @@ import collections.abc
 import os
 import shutil
 
+import math
 import cv2
 import numpy as np
+np.random.seed(0)
 
 from tensorboard import program
+from collections import deque
 
 
 def post_process_image(image, normalized=True, grayscale=True):
@@ -115,3 +118,123 @@ def launch_tensorboard(logdir, host="localhost", port="6006"):
     tb = program.TensorBoard()
     tb.configure(argv=[None, "--logdir", logdir, "--host", host, "--port", port])
     url = tb.launch()
+
+
+def get_position(gps, route_planner):
+    # Gets global latitude and longitude coordinates
+    converted_gps = (gps - route_planner.mean) * route_planner.scale
+    return converted_gps
+
+
+def get_speed(hero):
+    # Computes the speed of the hero vehicle in Km/h
+    vel = hero.get_velocity()
+    return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
+
+
+
+def calculate_high_level_action(self, high_level_action, compass, gps, near_node, far_node, data):
+    #0 brake
+    #1 no brake - go to left lane of next_waypoint
+    #2 no brake - keep lane (stay at next_waypoint's lane)
+    #3 no brake - go to right lane of next_waypoint
+
+    if high_level_action == 1: # left
+        offset = -3.5
+        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+    
+    elif high_level_action == 3: # right
+        offset = 3.5
+        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+    
+    else: # keep lane
+        offset = 0.0
+        new_near_node = near_node
+
+    # get auto-pilot actions
+    steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
+
+    if high_level_action == 0: # brake
+        throttle = 0.0
+        brake = 1.0
+    else: # no brake
+        throttle = throttle
+        brake = 0.0
+
+    return throttle, steer, brake, angle
+
+
+def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
+    # rotation matrix
+    R = np.array([
+        [np.cos(np.pi / 2 + ego_compass), -np.sin(np.pi / 2 + ego_compass)],
+        [np.sin(np.pi / 2 + ego_compass), np.cos(np.pi / 2 + ego_compass)]
+    ])
+
+    # transpose of rotation matrix
+    trans_R = R.T
+
+    local_command_point = np.array([near_node[0] - ego_gps[0], near_node[1] - ego_gps[1]])
+    local_command_point = trans_R.dot(local_command_point)
+
+    # positive offset shifts near node to right; negative offset shifts near node to left
+    local_command_point[0] += offset_amount
+    local_command_point[1] += 0
+
+    new_near_node = np.linalg.inv(trans_R).dot(local_command_point)
+
+    new_near_node[0] += ego_gps[0]
+    new_near_node[1] += ego_gps[1]
+
+    return new_near_node
+
+
+class RoutePlanner(object):
+    def __init__(self, min_distance, max_distance, debug_size=256):
+        self.route = deque()
+        self.min_distance = min_distance
+        self.max_distance = max_distance
+
+        # self.mean = np.array([49.0, 8.0]) # for carla 9.9
+        # self.scale = np.array([111324.60662786, 73032.1570362]) # for carla 9.9
+        self.mean = np.array([0.0, 0.0]) # for carla 9.10
+        self.scale = np.array([111324.60662786, 111319.490945]) # for carla 9.10
+
+    def set_route(self, global_plan, gps=False):
+        self.route.clear()
+
+        for pos, cmd in global_plan:
+            if gps:
+                pos = np.array([pos['lat'], pos['lon']])
+                pos -= self.mean
+                pos *= self.scale
+            else:
+                pos = np.array([pos.location.x, pos.location.y])
+                pos -= self.mean
+
+            self.route.append((pos, cmd))
+
+    def run_step(self, gps):
+        if len(self.route) == 1:
+            return self.route[0]
+
+        to_pop = 0
+        farthest_in_range = -np.inf
+        cumulative_distance = 0.0
+
+        for i in range(1, len(self.route)):
+            if cumulative_distance > self.max_distance:
+                break
+
+            cumulative_distance += np.linalg.norm(self.route[i][0] - self.route[i-1][0])
+            distance = np.linalg.norm(self.route[i][0] - gps)
+
+            if distance <= self.min_distance and distance > farthest_in_range:
+                farthest_in_range = distance
+                to_pop = i
+
+        for _ in range(to_pop):
+            if len(self.route) > 2:
+                self.route.popleft()
+
+        return self.route[1]
