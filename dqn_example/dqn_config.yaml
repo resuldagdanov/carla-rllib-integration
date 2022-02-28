@@ -1,3 +1,4 @@
+
 # To see the complete list of configurable parameters see:
 # https://github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
 # === GENERAL ===
@@ -12,8 +13,19 @@ train_batch_size: 64
 learning_starts: 20000
 buffer_size: 5000
 horizon: 250
-# "batch_mode": "complete_episodes"
 lr: 0.0025
+
+# "batch_mode": "complete_episodes"
+
+# === RAINBOW ===
+num_atoms: 51 # more than 1
+v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
+v_max: 10.0
+noisy: True
+dueling: True
+double_q: True
+n_step: 2 #between 1 and 10
+prioritized_replay: True
 
 # === EXPLORATION ===
 # "exploration_config": {
@@ -66,8 +78,8 @@ env_config:
     debug_mode: 1
   experiment:
     hero:
-      routes: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
-      scenarios: "/home/resul/Research/Codes/Carla/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
+      routes: "routes/failed_routes/town05_long/stuck_vehicle_1.xml"
+      scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1
       ego_vehicle_type: "vehicle.lincoln.mkz2017"
@@ -107,4 +119,4 @@ env_config:
     others:
       framestack: 4
       max_time_idle: 600
-      max_time_episode: 250 #6400
+      max_time_episode: 100 #6400

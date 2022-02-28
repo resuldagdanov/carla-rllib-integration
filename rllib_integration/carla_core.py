@@ -44,6 +44,29 @@ BASE_CORE_CONFIG = {
     "show_display": False  # Whether or not the server will be displayed
 }
 
+WEATHERS = {
+        'ClearNoon': carla.WeatherParameters.ClearNoon,
+        'ClearSunset': carla.WeatherParameters.ClearSunset,
+
+        'CloudyNoon': carla.WeatherParameters.CloudyNoon,
+        'CloudySunset': carla.WeatherParameters.CloudySunset,
+
+        'WetNoon': carla.WeatherParameters.WetNoon,
+        'WetSunset': carla.WeatherParameters.WetSunset,
+
+        'MidRainyNoon': carla.WeatherParameters.MidRainyNoon,
+        'MidRainSunset': carla.WeatherParameters.MidRainSunset,
+
+        'WetCloudyNoon': carla.WeatherParameters.WetCloudyNoon,
+        'WetCloudySunset': carla.WeatherParameters.WetCloudySunset,
+
+        'HardRainNoon': carla.WeatherParameters.HardRainNoon,
+        'HardRainSunset': carla.WeatherParameters.HardRainSunset,
+
+        'SoftRainNoon': carla.WeatherParameters.SoftRainNoon,
+        'SoftRainSunset': carla.WeatherParameters.SoftRainSunset,
+}
+WEATHERS_IDS = list(WEATHERS)
 
 def is_used(port):
     """
@@ -77,7 +100,7 @@ class CarlaCore:
         self.config = join_dicts(BASE_CORE_CONFIG, config)
         self.sensor_interface = SensorInterface()
 
-        self.scenario_exist = None
+        self.is_scenario_and_hero_initialized = False
 
         self.init_server()
         self.connect_client()
@@ -170,8 +193,8 @@ class CarlaCore:
         self.map = self.world.get_map()
 
         # Choose the weather of the simulation
-        weather = getattr(carla.WeatherParameters, experiment_config["weather"])
-        self.world.set_weather(weather)
+        # weather = getattr(carla.WeatherParameters, experiment_config["weather"])
+        # self.world.set_weather(weather)
 
         self.tm_port = self.server_port // 10 + self.server_port % 10
         while is_used(self.tm_port):
@@ -187,11 +210,36 @@ class CarlaCore:
 
         self.world.reset_all_traffic_lights()
 
+        self.world.tick()
+
+    def scenario_cleanup(self):
+        self.manager.stop_scenario()
+        self.scenario.remove_all_actors()
+        if self.manager:
+            self.manager.cleanup()
+        CarlaDataProvider.cleanup()
+        print("Scenario cleaning up")
+
+    def scenario_and_hero_init(self, hero_config):
         CarlaDataProvider.set_client(self.client)
         CarlaDataProvider.set_world(self.world)
         CarlaDataProvider.set_traffic_manager_port(self.tm_port)
 
-        self.world.tick()
+        self.manager = CustomScenarioManager(self.config["timeout"], self.config["debug_mode"] > 1)
+        route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
+
+        # only one route is allowed
+        route_indexer.peek()
+        route_indexer_config = route_indexer.next()
+
+        # create and load scenario
+        self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
+        self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
+        
+        self.hero = self.scenario.ego_vehicle
+
+        if not self.is_scenario_and_hero_initialized:
+            self.is_scenario_and_hero_initialized = True
 
     def reset_hero(self, hero_config):
         """
@@ -202,6 +250,10 @@ class CarlaCore:
 
         self.world.tick()
 
+        """
+        Spawn or update the ego vehicles
+        """
+
         self.hero_blueprints = self.world.get_blueprint_library().find(hero_config['ego_vehicle_type'])
         self.hero_blueprints.set_attribute("role_name", "hero")
 
@@ -210,7 +262,9 @@ class CarlaCore:
             self.hero.destroy()
             self.hero = None
         
-        print(f"self.scenario_exist {self.scenario_exist}")
+        print(f"self.is_scenario_and_hero_initialized {self.is_scenario_and_hero_initialized}")
+        if self.is_scenario_and_hero_initialized:
+            self.scenario_cleanup()
 
         # TODO: perform successful cleanup
         """
@@ -223,26 +277,15 @@ class CarlaCore:
             print("Scenario cleaning up")
         """
 
-        self.manager = CustomScenarioManager(self.config["timeout"], self.config["debug_mode"] > 1)
-        route_indexer = RouteIndexer(hero_config['routes'], hero_config['scenarios'], hero_config['repetitions'])
+        # TODO: change of weather will be added
 
-        # only one route is allowed
-        route_indexer.peek()
-        route_indexer_config = route_indexer.next()
-        
-        # create and load scenario
-        self.scenario = CustomRouteScenario(world=self.world, config=route_indexer_config, ego_vehicle_type=hero_config['ego_vehicle_type'], debug_mode=hero_config['debug_mode'])
-        self.manager.load_scenario(self.scenario, route_indexer_config.repetition_index)
+        self.scenario_and_hero_init(hero_config)
 
         # make and set route planner
         self.route_planner = RoutePlanner(min_distance=4.0, max_distance=50.0)
         self.command_planner = RoutePlanner(min_distance=7.5, max_distance=25.0, debug_size=257)
         self.route_planner.set_route(global_plan=self.scenario.gps_route, gps=True)
         self.command_planner.set_route(global_plan=self.scenario.global_plan, gps=True)
-        
-        self.hero = self.scenario.ego_vehicle
-        
-        # TODO: change of weather will be added
 
         # Part 3: Spawn the new sensors
         for name, attributes in hero_config["sensors"].items():
@@ -259,10 +302,19 @@ class CarlaCore:
 
         return self.hero
 
+    def change_weather(self):
+        index = random.choice(range(len(WEATHERS)))
+
+        self.weather_id = WEATHERS_IDS[index]
+        self.world.set_weather(WEATHERS[WEATHERS_IDS[index]])
+
     def tick(self, control):
         """
         Performs one tick of the simulation, moving all actors, and getting the sensor data
         """
+        
+        self.change_weather() # TODO: should we avoid it when we are evaluating the model?
+
         # Move hero vehicle and scenario vehicles
         if control is not None:
             timestamp = None

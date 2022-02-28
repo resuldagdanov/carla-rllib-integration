@@ -145,11 +145,11 @@ class CustomScenarioManager(object):
                 self._running = False
                 return
 
-            spectator = CarlaDataProvider.get_world().get_spectator()
-            ego_trans = self.ego_vehicles[0].get_transform()
-            ego_yaw = ego_trans.rotation.yaw
-            spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(x=-15 * math.cos(ego_yaw * 3.1415 / 180), y=-15 * math.sin(ego_yaw * 3.1415 / 180), z=15),
-                                    carla.Rotation(yaw=ego_yaw, pitch=-30)))
+            #spectator = CarlaDataProvider.get_world().get_spectator()
+            #ego_trans = self.ego_vehicles[0].get_transform()
+            #ego_yaw = ego_trans.rotation.yaw
+            #spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(x=-15 * math.cos(ego_yaw * 3.1415 / 180), y=-15 * math.sin(ego_yaw * 3.1415 / 180), z=15),
+            #                        carla.Rotation(yaw=ego_yaw, pitch=-30)))
 
         if self._running and self.get_running_status():
             CarlaDataProvider.get_world().tick(self._timeout)

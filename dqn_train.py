@@ -40,7 +40,7 @@ def run(args):
         ray.init(address= "auto" if args.auto else None)
         trainer = DQNTrainer(config=args.config, env=CarlaEnv)
 
-        num_of_episodes = 5
+        num_of_episodes = 2
 
         for eps in range(num_of_episodes):
             result = trainer.train()
@@ -66,8 +66,24 @@ def parse_config(args):
         config["callbacks"] = DQNCallbacks
         config["evaluation_config"]["env_config"] = config["env_config"]
 
+    config = update_routes_and_scenarios_files(config)
+
     return config
 
+def update_routes_and_scenarios_files(config):
+    cwd = os.getcwd() # current working directory
+    path = cwd + "/custom_scenario_runner/"
+
+    config["env_config"]["experiment"]["hero"]["routes"] = path + config["env_config"]["experiment"]["hero"]["routes"]
+    config["env_config"]["experiment"]["hero"]["scenarios"] = path + config["env_config"]["experiment"]["hero"]["scenarios"]
+
+    if not os.path.exists(config["env_config"]["experiment"]["hero"]["routes"]):
+        raise Exception(config["env_config"]["experiment"]["hero"]["routes"] + " does not exist!")
+
+    if not os.path.exists(config["env_config"]["experiment"]["hero"]["scenarios"]):
+        raise Exception(config["env_config"]["experiment"]["hero"]["scenarios"] + " does not exist!")
+
+    return config
 
 def main():
     argparser = argparse.ArgumentParser(description=__doc__)

@@ -36,6 +36,7 @@ class CarlaEnv(gym.Env):
 
     def reset(self):
         # Reset sensors hero and experiment
+        print("env reset")
         self.hero = self.core.reset_hero(self.experiment.config["hero"])
         self.experiment.reset()
 
