@@ -78,8 +78,8 @@ env_config:
     debug_mode: 1
   experiment:
     hero:
-      routes: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/routes/failed_routes/town05_long/stuck_vehicle_1.xml" # TODO: make this generic
-      scenarios: "/home/feyza/depo/research/carla_rl/rllib-integration/custom_scenario_runner/scenarios/all_towns_traffic_scenarios_WOR.json"
+      routes: "routes/failed_routes/town05_long/stuck_vehicle_1.xml"
+      scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1
       ego_vehicle_type: "vehicle.lincoln.mkz2017"
@@ -103,4 +103,4 @@ env_config:
     others:
       framestack: 4
       max_time_idle: 600
-      max_time_episode: 250 #6400
+      max_time_episode: 10 #6400
