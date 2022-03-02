@@ -11,9 +11,11 @@ Download Carla 0.9.11 https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CA
 ```sh
 gedit ~/.bashrc
 
-export CARLA_ROOT=PATH_TO_CARLA_ROOT
-export SCENARIO_RUNNER_ROOT=PATH_TO_SCENARIO_RUNNER
-export LEADERBOARD_ROOT=PATH_TO_LEADERBOARD
+export DeFIX_PATH=PATH_TO_MAIN_DeFIX_REPO
+export CARLA_ROOT=PATH_TO_CARLA_ROOT_SH
+
+export SCENARIO_RUNNER_ROOT="${DeFIX_PATH}/scenario_runner"
+export LEADERBOARD_ROOT="${DeFIX_PATH}/leaderboard"
 export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":"${SCENARIO_RUNNER_ROOT}":"${LEADERBOARD_ROOT}":"${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.11-py3.7-linux-x86_64.egg":${PYTHONPATH}
 
 source ~/.bashrc
