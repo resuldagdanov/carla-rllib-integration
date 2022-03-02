@@ -11,6 +11,7 @@ import collections.abc
 import os
 import shutil
 
+import torch
 import math
 import cv2
 import numpy as np
@@ -18,6 +19,48 @@ np.random.seed(0)
 
 from tensorboard import program
 from collections import deque
+
+
+def process_image_for_dnn(image, normalized=True, torch_normalize=True):
+    """
+    Convert image to format required for ResNet network and normalize between -1 and 1 if required
+    """
+    image = image[:, :, :3]
+    image = image[:, :, ::-1]
+    image = image[:, :, ::-1]
+
+    # convert width height channel to channel width height
+    image = np.array(image.transpose((2, 0, 1)), np.float32)
+
+    # BGRA to BGR
+    image = image[:3, :, :]
+
+    # BGR to RGB
+    image = image[::-1, :, :]
+
+    if normalized:
+        # normalize to 0 - 1
+        image = image.astype(np.float32) / 255
+    
+    # convert image to torch tensor
+    image = torch.from_numpy(image.copy()).unsqueeze(0)
+
+    # normalize input image (using default torch normalization technique)
+    if torch_normalize:
+        image = normalize_rgb(image)
+
+    return image
+
+
+def normalize_rgb(image):
+    """
+    Default pytorch image normalization calculations
+    """
+    x = image.clone()
+    x[:, 0] = (x[:, 0] - 0.485) / 0.229
+    x[:, 1] = (x[:, 1] - 0.456) / 0.224
+    x[:, 2] = (x[:, 2] - 0.406) / 0.225
+    return x
 
 
 def post_process_image(image, normalized=True, grayscale=True):

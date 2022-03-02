@@ -6,19 +6,24 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
+import os
 import math
 import numpy as np
+import torch
+from torchvision import models
 from gym.spaces import Box, Discrete
 
 import carla
 
 from rllib_integration.base_experiment import BaseExperiment
-from rllib_integration.helper import post_process_image, get_position, get_speed, calculate_high_level_action, PIDController
+from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, PIDController
 
 
 class DQNExperiment(BaseExperiment):
     def __init__(self, config={}):
         super().__init__(config)  # Creates a self.config with the experiment configuration
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.frame_stack = self.config["others"]["framestack"]
         self.max_time_idle = self.config["others"]["max_time_idle"]
@@ -38,6 +43,20 @@ class DQNExperiment(BaseExperiment):
         self.compass = None
         self.speed_ms = None
         self.near_node = None
+
+        # load pretrained ResNet
+        self.resnet_model = models.resnet50(pretrained=False)
+
+        # NOTE: comment out the following two lines if resnet model is not pre-save
+        resnet_model_path = os.path.join(os.path.join(os.environ.get("DeFIX_PATH"), "checkpoint/models/"), "resnet50.zip")
+        self.resnet_model.load_state_dict(torch.load(resnet_model_path))
+
+        # freeze weights
+        for param in self.resnet_model.parameters():
+            param.requires_grad = False
+
+        self.resnet_model.eval()
+        #self.resnet_model.to(self.device)
 
     def reset(self):
         """
@@ -70,14 +89,15 @@ class DQNExperiment(BaseExperiment):
     def get_observation_space(self):
         num_of_channels = 3
         image_space = Box(
-            low=0.0,
-            high=255.0,
-            shape=(
-                self.config["hero"]["sensors"]["birdview"]["size"],
-                self.config["hero"]["sensors"]["birdview"]["size"],
-                num_of_channels * self.frame_stack,
-            ),
-            dtype=np.uint8,
+            low=-np.inf, # 0.0
+            high=np.inf, # 255.0
+            shape=(1000, ),
+            # shape=(
+            #     self.config["hero"]["sensors"]["birdview"]["size"],
+            #     self.config["hero"]["sensors"]["birdview"]["size"],
+            #     num_of_channels * self.frame_stack,
+            # ),
+            dtype=np.float32,
         )
         return image_space
 
@@ -113,6 +133,8 @@ class DQNExperiment(BaseExperiment):
         as well as a variable with additional information about such observation.
         The information variable can be empty
         """
+        stack_images = False # TODO: remove this option
+
         self.ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
         self.compass = sensor_data['imu'][1][-1]
 
@@ -122,28 +144,46 @@ class DQNExperiment(BaseExperiment):
         self.near_node, near_command = self.route_planner.run_step(gps=self.ego_gps)
         far_node, far_command = self.command_planner.run_step(gps=self.ego_gps)
 
-        # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
-        image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
+        if stack_images:
+            # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
+            image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
 
-        if self.prev_image_0 is None:
-            self.prev_image_0 = image
-            self.prev_image_1 = self.prev_image_0
+            print("image : ", image, image.shape, type(image))
+            if self.prev_image_0 is None:
+                self.prev_image_0 = image
+                self.prev_image_1 = self.prev_image_0
+                self.prev_image_2 = self.prev_image_1
+
+            images = image
+
+            if self.frame_stack >= 2:
+                images = np.concatenate([self.prev_image_0, images], axis=2)
+            if self.frame_stack >= 3 and images is not None:
+                images = np.concatenate([self.prev_image_1, images], axis=2)
+            if self.frame_stack >= 4 and images is not None:
+                images = np.concatenate([self.prev_image_2, images], axis=2)
+
             self.prev_image_2 = self.prev_image_1
+            self.prev_image_1 = self.prev_image_0
+            self.prev_image_0 = image
 
-        images = image
+            return images, {}
 
-        if self.frame_stack >= 2:
-            images = np.concatenate([self.prev_image_0, images], axis=2)
-        if self.frame_stack >= 3 and images is not None:
-            images = np.concatenate([self.prev_image_1, images], axis=2)
-        if self.frame_stack >= 4 and images is not None:
-            images = np.concatenate([self.prev_image_2, images], axis=2)
+        else:
+            # pre-process image format
+            processed_image = process_image_for_dnn(image=sensor_data['front_camera'][1], normalized=True, torch_normalize=True)
+            #processed_image = processed_image.to(self.device)
 
-        self.prev_image_2 = self.prev_image_1
-        self.prev_image_1 = self.prev_image_0
-        self.prev_image_0 = image
+            #print("processed_image : ", processed_image, processed_image.shape, type(processed_image))
 
-        return images, {}
+            # apply freezed pre-trained resnet model onto the image
+            with torch.no_grad():
+                image_features_torch = self.resnet_model(processed_image)
+                #image_features = image_features_torch.cpu().detach().numpy()[0]
+
+                #print("image_features : ", image_features, image_features.shape, type(image_features))
+
+            return image_features_torch, {}
 
     def get_done_status(self, observation, core):
         """
@@ -195,8 +235,7 @@ class DQNExperiment(BaseExperiment):
             self.last_location = hero_location
 
         # Compute deltas
-        delta_distance = float(np.sqrt(np.square(hero_location.x - self.last_location.x) + \
-                            np.square(hero_location.y - self.last_location.y)))
+        delta_distance = float(np.sqrt(np.square(hero_location.x - self.last_location.x) + np.square(hero_location.y - self.last_location.y)))
         delta_velocity = hero_velocity - self.last_velocity
 
         # Update variables

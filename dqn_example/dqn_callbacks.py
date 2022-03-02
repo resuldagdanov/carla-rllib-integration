@@ -7,9 +7,10 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
 import numpy as np
+import sys
 
 from ray.rllib.agents.callbacks import DefaultCallbacks
-import sys
+
 
 class DQNCallbacks(DefaultCallbacks):
     def on_episode_start(self, worker, base_env, policies, episode, **kwargs):

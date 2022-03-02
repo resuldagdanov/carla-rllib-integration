@@ -72,6 +72,7 @@ def main():
     args.gpu_n = get_gpu_or_cpu_number(args.device) # Are we using GPU or CPU?
 
     try:
+        print("CUSTOM DQN")
         # Initialize the model and load the state dictionary
         model = CustomDQNModel(gpu_n=args.gpu_n)
         model.load_state_dict(torch.load(args.checkpoint))
@@ -97,3 +98,4 @@ def main():
 if __name__ == '__main__':
 
     main()
+    print("HRERERERER")

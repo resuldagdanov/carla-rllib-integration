@@ -12,7 +12,6 @@ import signal
 import subprocess
 import time
 import psutil
-import logging
 
 import carla
 
@@ -25,8 +24,6 @@ from leaderboard.utils.route_indexer import RouteIndexer
 
 from custom_scenario_runner.custom_route_scenario import CustomRouteScenario
 from custom_scenario_runner.custom_scenario_manager import CustomScenarioManager
-
-from threading import Thread
 
 from rllib_integration.helper import RoutePlanner
 
