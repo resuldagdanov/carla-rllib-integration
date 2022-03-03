@@ -245,11 +245,8 @@ class CarlaCore:
         # Part 1: destroy all sensors (if necessary)
         self.sensor_interface.destroy()
 
+        self.tick_counter = 0
         self.world.tick()
-
-        """
-        Spawn or update the ego vehicles
-        """
 
         self.hero_blueprints = self.world.get_blueprint_library().find(hero_config['ego_vehicle_type'])
         self.hero_blueprints.set_attribute("role_name", "hero")
@@ -274,8 +271,6 @@ class CarlaCore:
             print("Scenario cleaning up")
         """
 
-        # TODO: change of weather will be added
-
         self.scenario_and_hero_init(hero_config)
 
         # make and set route planner
@@ -290,12 +285,9 @@ class CarlaCore:
             print(f"sensor {sensor} spawned!")
 
         self.manager.init_tick_scenario()
+        
         # sync state
-
         self.world.tick()
-
-        # Not needed anymore. This tick will happen when calling CarlaCore.tick()
-        # self.world.tick()
 
         return self.hero
 
@@ -309,8 +301,11 @@ class CarlaCore:
         """
         Performs one tick of the simulation, moving all actors, and getting the sensor data
         """
+        self.tick_counter += 1
         
-        self.change_weather() # TODO: should we avoid it when we are evaluating the model?
+        # TODO: should we avoid it when we are evaluating the model?
+        if self.tick_counter % 10 == 0:
+            self.change_weather()
 
         # Move hero vehicle and scenario vehicles
         if control is not None:

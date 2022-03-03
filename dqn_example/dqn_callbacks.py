@@ -7,24 +7,23 @@
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
 import numpy as np
-import sys
 
 from ray.rllib.agents.callbacks import DefaultCallbacks
 
 
 class DQNCallbacks(DefaultCallbacks):
     def on_episode_start(self, worker, base_env, policies, episode, **kwargs):
-        print(f"---------on_episode_start----------")
+        print("--------- on_episode_start ----------")
         episode.user_data["heading_deviation"] = []
 
     def on_episode_step(self, worker, base_env, episode, **kwargs):
-        print(f"---------on_episode_step----------")
+        print("--------- on_episode_step ----------")
         heading_deviation = worker.env.experiment.last_heading_deviation
         if heading_deviation > 0:
             episode.user_data["heading_deviation"].append(heading_deviation)
 
     def on_episode_end(self, worker, base_env, policies, episode, **kwargs):
-        print(f"---------on_episode_end----------")
+        print("--------- on_episode_end ----------")
         heading_deviation = episode.user_data["heading_deviation"]
         if len(heading_deviation) > 0:
             heading_deviation = np.mean(episode.user_data["heading_deviation"])
