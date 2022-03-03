@@ -1,3 +1,5 @@
+Original CARLA RLLib Integration Repository: [rllib-integration](https://github.com/carla-simulator/rllib-integration)
+
 ## Installation Steps
 
 * Download [Carla 0.9.11](https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.11.tar.gz)
