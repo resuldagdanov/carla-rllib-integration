@@ -23,6 +23,7 @@ class DQNExperiment(BaseExperiment):
     def __init__(self, config={}):
         super().__init__(config)  # Creates a self.config with the experiment configuration
 
+        self.ResNetShape = (1, 1000)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         self.frame_stack = self.config["others"]["framestack"]
@@ -56,7 +57,7 @@ class DQNExperiment(BaseExperiment):
             param.requires_grad = False
 
         self.resnet_model.eval()
-        #self.resnet_model.to(self.device)
+        self.resnet_model.to(self.device)
 
     def reset(self):
         """
@@ -91,7 +92,7 @@ class DQNExperiment(BaseExperiment):
         image_space = Box(
             low=-np.inf, # 0.0
             high=np.inf, # 255.0
-            shape=(1000, ),
+            shape=self.ResNetShape,
             # shape=(
             #     self.config["hero"]["sensors"]["birdview"]["size"],
             #     self.config["hero"]["sensors"]["birdview"]["size"],
@@ -148,7 +149,8 @@ class DQNExperiment(BaseExperiment):
             # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
             image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
 
-            print("image : ", image, image.shape, type(image))
+            print("image : ", image)
+            print(image.shape, type(image))
             if self.prev_image_0 is None:
                 self.prev_image_0 = image
                 self.prev_image_1 = self.prev_image_0
@@ -172,18 +174,15 @@ class DQNExperiment(BaseExperiment):
         else:
             # pre-process image format
             processed_image = process_image_for_dnn(image=sensor_data['front_camera'][1], normalized=True, torch_normalize=True)
-            #processed_image = processed_image.to(self.device)
-
-            #print("processed_image : ", processed_image, processed_image.shape, type(processed_image))
+            processed_image = processed_image.to(self.device)
 
             # apply freezed pre-trained resnet model onto the image
             with torch.no_grad():
                 image_features_torch = self.resnet_model(processed_image)
-                #image_features = image_features_torch.cpu().detach().numpy()[0]
+                image_features = image_features_torch.cpu().detach().numpy()[0]
+                image_features = image_features.reshape(self.ResNetShape)
 
-                #print("image_features : ", image_features, image_features.shape, type(image_features))
-
-            return image_features_torch, {}
+            return image_features, {}
 
     def get_done_status(self, observation, core):
         """
